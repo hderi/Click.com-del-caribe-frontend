@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 function token() {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("token") || localStorage.getItem("authToken") || "";
+  return localStorage.getItem("clickcom_token") || localStorage.getItem("token") || "";
 }
 
 function headers() {
@@ -14,52 +14,41 @@ function headers() {
   return value ? { Authorization: `Bearer ${value}` } : {};
 }
 
-function asArray(data) {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.reparaciones)) return data.reparaciones;
-  if (Array.isArray(data?.usuarios)) return data.usuarios;
-  return [];
-}
-
-function parseDate(value) {
+function dateOnly(value) {
   if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
 }
 
-function daysSince(value) {
-  const date = parseDate(value);
-  if (!date) return 0;
-  return Math.floor((Date.now() - date.getTime()) / 86400000);
+function daysBetween(a, b) {
+  return Math.floor((a.getTime() - b.getTime()) / 86400000);
 }
 
-function clienteNombre(item) {
+function labelClient(item) {
   if (typeof item.cliente === "string") return item.cliente;
-  return item.clienteNombre || item.cliente?.nombre || "Cliente sin nombre";
+  return item.cliente?.nombre || item.clienteNombre || "Cliente sin nombre";
 }
 
-function equipoNombre(item) {
+function labelEquipo(item) {
   if (typeof item.equipo === "string") return item.equipo;
-  return item.equipoNombre || item.equipo?.modelo || item.modelo || "Equipo sin modelo";
+  return item.equipo?.modelo || item.equipo?.marca || item.equipoNombre || "Equipo sin modelo";
 }
 
-function fechaLocal(value) {
-  const date = parseDate(value);
-  if (!date) return "Sin fecha";
-  return new Intl.DateTimeFormat("es-MX", {
-    timeZone: "America/Cancun",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
+function AlertCard({ title, count, caption, active, onClick }) {
+  return (
+    <button onClick={onClick} className={`rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${active ? "border-[#009FE3]" : "border-[#C9DCEB]"}`}>
+      <p className="text-sm font-bold text-[#0F2236]">{title}</p>
+      <p className="mt-3 text-3xl font-black text-[#B65F18]">{count}</p>
+      <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-[#5D7287]">{caption}</p>
+    </button>
+  );
 }
 
 export default function AlertasPage() {
   const [reparaciones, setReparaciones] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [active, setActive] = useState("vencidas");
+  const [filter, setFilter] = useState("vencidas");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -67,88 +56,72 @@ export default function AlertasPage() {
       try {
         const [repRes, userRes] = await Promise.all([
           fetch(`${API_URL}/api/reparaciones`, { headers: headers() }),
-          fetch(`${API_URL}/api/usuarios`, { headers: headers() }).catch(() => null),
+          fetch(`${API_URL}/api/usuarios`, { headers: headers() }),
         ]);
-        const repData = await repRes.json();
-        const userData = userRes ? await userRes.json() : [];
-        setReparaciones(asArray(repData));
-        setUsuarios(asArray(userData));
+        const repData = repRes.ok ? await repRes.json() : [];
+        const userData = userRes.ok ? await userRes.json() : [];
+        setReparaciones(Array.isArray(repData) ? repData : repData.reparaciones || []);
+        setUsuarios(Array.isArray(userData) ? userData : userData.usuarios || []);
       } catch (err) {
-        setError(err.message || "No se pudieron cargar alertas.");
+        setError("No se pudieron cargar las alertas.");
       }
     }
     load();
   }, []);
 
-  const alertas = useMemo(() => {
-    const abiertas = reparaciones.filter((item) => !["entregado", "cerrado"].includes(String(item.estado || item.status || "").toLowerCase()));
-    const sinMovimiento = abiertas.filter((item) => daysSince(item.actualizadoEn || item.ultimoMovimiento || item.fecha || item.creadoEn) >= 3);
-    const vencidas = abiertas.filter((item) => {
-      const fecha = parseDate(item.fechaEntregaEstimada || item.fechaEstimada);
-      return fecha && fecha.getTime() < Date.now();
+  const data = useMemo(() => {
+    const today = new Date();
+    const abiertas = reparaciones.filter((item) => !["entregado", "finalizado", "cerrado"].includes(String(item.estado || "").toLowerCase()));
+    const sinMovimiento = abiertas.filter((item) => {
+      const historial = Array.isArray(item.historial) ? item.historial : [];
+      const last = historial[0]?.fecha || item.actualizadoEn || item.creadoEn || item.fechaIngreso;
+      const d = dateOnly(last);
+      return d ? daysBetween(today, d) > 3 : false;
     });
-    const sinRecoger = reparaciones.filter((item) => ["listo", "finalizado"].includes(String(item.estado || item.status || "").toLowerCase()));
-    const accesos = usuarios.filter((item) => item.debeCambiarPassword || item.passwordPendiente);
+    const vencidas = abiertas.filter((item) => {
+      const d = dateOnly(item.fechaEntregaEstimada || item.entregaEstimada || item.dateEstimated);
+      return d ? d < today : false;
+    });
+    const sinRecoger = reparaciones.filter((item) => ["finalizado", "listo"].includes(String(item.estado || "").toLowerCase()));
+    const accesos = usuarios.filter((u) => u.debeCambiarPassword || u.debe_cambiar_password);
     return { sinMovimiento, vencidas, sinRecoger, accesos };
   }, [reparaciones, usuarios]);
 
-  const list = alertas[active] || [];
+  const current = filter === "sinMovimiento" ? data.sinMovimiento : filter === "sinRecoger" ? data.sinRecoger : filter === "accesos" ? data.accesos : data.vencidas;
 
   return (
-    <main className="min-h-screen bg-[#EAF4FA] p-6 font-sans text-[#0B1F33]">
+    <div className="space-y-5 text-[#0F2236]">
       <section className="rounded-2xl border border-[#C9DCEB] bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#C05A00]">Centro de avisos</p>
-        <h1 className="mt-2 text-3xl font-bold">Alertas del taller</h1>
-        <p className="mt-2 max-w-3xl text-[#52657A]">
-          Detecta órdenes vencidas, folios sin movimiento, equipos listos sin recoger y usuarios con acceso pendiente.
-        </p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7900]">Centro de avisos</p>
+        <h1 className="mt-2 text-3xl font-black">Alertas del taller</h1>
+        <p className="mt-2 max-w-3xl text-sm text-[#496178]">Situaciones que requieren atenciÃ³n: Ã³rdenes sin movimiento, fechas rebasadas, equipos listos sin recoger y accesos pendientes.</p>
       </section>
 
-      {error ? <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-700">{error}</p> : null}
+      {error && <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
 
-      <section className="mt-5 grid gap-4 md:grid-cols-4">
-        {[
-          ["vencidas", "Fecha vencida", alertas.vencidas.length, "Entrega rebasada"],
-          ["sinMovimiento", "Sin movimiento", alertas.sinMovimiento.length, "Más de 3 días"],
-          ["sinRecoger", "Sin recoger", alertas.sinRecoger.length, "Listas o finalizadas"],
-          ["accesos", "Accesos", alertas.accesos.length, "Contraseña pendiente"],
-        ].map(([key, label, total, sub]) => (
-          <button
-            key={key}
-            onClick={() => setActive(key)}
-            className={`rounded-2xl border p-5 text-left shadow-sm transition ${active === key ? "border-[#009FE3] bg-white" : "border-[#C9DCEB] bg-white/80"}`}
-          >
-            <p className="font-bold">{label}</p>
-            <p className="mt-3 text-4xl font-bold text-[#0077B6]">{total}</p>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#52657A]">{sub}</p>
-          </button>
-        ))}
-      </section>
+      <div className="grid gap-4 md:grid-cols-4">
+        <AlertCard title="Sin movimiento" count={data.sinMovimiento.length} caption="MÃ¡s de 3 dÃ­as" active={filter === "sinMovimiento"} onClick={() => setFilter("sinMovimiento")} />
+        <AlertCard title="Fecha vencida" count={data.vencidas.length} caption="Entrega rebasada" active={filter === "vencidas"} onClick={() => setFilter("vencidas")} />
+        <AlertCard title="Sin recoger" count={data.sinRecoger.length} caption="Finalizados" active={filter === "sinRecoger"} onClick={() => setFilter("sinRecoger")} />
+        <AlertCard title="Accesos" count={data.accesos.length} caption="ContraseÃ±a pendiente" active={filter === "accesos"} onClick={() => setFilter("accesos")} />
+      </div>
 
-      <section className="mt-5 rounded-2xl border border-[#C9DCEB] bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-bold">Resultados</h2>
+      <section className="rounded-2xl border border-[#C9DCEB] bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-black">Detalle de alerta</h2>
         <div className="mt-4 space-y-3">
-          {list.length ? list.map((item, index) => (
-            <article key={item.id || item.folio || index} className="rounded-xl border border-[#E3EDF5] bg-[#F8FBFD] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-bold">{item.folio || item.usuario || item.nombre || "Registro"}</p>
-                  <p className="text-sm text-[#52657A]">
-                    {clienteNombre(item)} · {equipoNombre(item)}
-                  </p>
-                </div>
-                <span className="rounded-full bg-[#E6F7FF] px-3 py-1 text-xs font-bold text-[#0077B6]">
-                  {fechaLocal(item.fechaEntregaEstimada || item.fechaEstimada || item.actualizadoEn || item.creadoEn)}
-                </span>
+          {current.length === 0 ? (
+            <p className="rounded-xl border border-[#E1EDF5] bg-[#F8FBFD] p-4 text-sm font-semibold text-[#496178]">No hay registros en esta categorÃ­a.</p>
+          ) : current.map((item, index) => (
+            <a key={item.id || item.folio || index} href={item.folio ? `/admin/reparaciones/${item.folio}` : "/admin/configuracion"} className="block rounded-xl border border-[#E1EDF5] bg-[#F8FBFD] p-4 transition hover:border-[#009FE3]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <strong>{item.folio || item.usuario || item.nombre || "Registro"}</strong>
+                <span className="text-xs font-bold text-[#B65F18]">{item.estado || item.rol || "Pendiente"}</span>
               </div>
-            </article>
-          )) : (
-            <p className="rounded-xl border border-[#E3EDF5] bg-[#F8FBFD] p-4 font-semibold text-[#52657A]">
-              No hay registros en esta alerta.
-            </p>
-          )}
+              <p className="mt-1 text-sm text-[#496178]">{labelClient(item)} Â· {labelEquipo(item)}</p>
+            </a>
+          ))}
         </div>
       </section>
-    </main>
+    </div>
   );
 }
