@@ -26,7 +26,7 @@ function mapRepair(data, mensaje) {
   const equipo = data.equipo || {};
   const cliente = data.cliente || {};
   const historial = Array.isArray(data.historial) ? data.historial : [];
-  const photos = dedupePhotos([...(data.fotos || []), ...(data.fotosRecepcion || []), ...(equipo.fotosRecepcion || [])]);
+  const photos = [...(data.fotos || []), ...(data.fotosRecepcion || []), ...(equipo.fotosRecepcion || [])];
 
   return {
     folio: data.folio,

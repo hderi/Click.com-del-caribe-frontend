@@ -10,15 +10,6 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-
-function labelOf(value) {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string" || typeof value === "number") return String(value);
-  if (value.nombre) return value.nombre;
-  if (value.folio) return value.folio;
-  if (value.modelo || value.marca) return [value.marca, value.modelo].filter(Boolean).join(" ");
-  return "";
-}
 function token() {
   if (typeof window === "undefined") return "";
   return localStorage.getItem("clickcom_token") || localStorage.getItem("token") || "";
