@@ -7,7 +7,6 @@ import InputField from "@/components/admin/InputField";
 import SelectField from "@/components/admin/SelectField";
 import Button from "@/components/ui/Button";
 
-const MARCAS_COMUNES = ["Dell", "HP", "Lenovo", "Apple", "Acer", "Asus", "Epson", "Canon", "Brother", "Samsung", "LG", "Gigabyte", "Qian", "Ubiquiti", "Intel", "AMD", "Kingston", "ADATA", "TP-Link", "Logitech"];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const DEVICE_TYPES = [
@@ -337,14 +336,6 @@ export default function NewRepairForm() {
   };
 
   const handleSubmit = async (event) => {
-    const costoServicio = Number(formData?.costoServicio || form?.costoServicio || 0);
-    const anticipo = Number(formData?.anticipo || form?.anticipo || 0);
-    if (anticipo > costoServicio && costoServicio > 0) {
-      setError?.("El anticipo no puede ser mayor al costo del servicio.");
-      alert("El anticipo no puede ser mayor al costo del servicio.");
-      return;
-    }
-
     event.preventDefault();
     if (!validate()) return;
     setIsSubmitting(true);

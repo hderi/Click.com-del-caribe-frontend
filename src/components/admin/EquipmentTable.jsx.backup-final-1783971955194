@@ -97,7 +97,7 @@ export default function EquipmentTable({ equipment, loading = false }) {
                 <td className="px-3 py-4 text-sm font-bold text-[#334155]">{item.lastService && item.lastService !== "Sin historial" ? item.lastService : "—"}</td>
                 <td className="px-5 py-4 text-right sm:px-6">
                   <div className="inline-flex items-center gap-1 rounded-2xl border border-[#C9D8E5] bg-[#EEF5FA] p-1">
-                    <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="rounded-xl px-3 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">Historial</Link>
+                    <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="rounded-xl px-3 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">Ficha</Link>
                     <Link href={`/admin/equipos/${encodeURIComponent(item.id)}#historial`} className="rounded-xl px-3 py-2 text-xs font-black text-[#526174] transition hover:bg-white">Historial</Link>
                   </div>
                 </td>

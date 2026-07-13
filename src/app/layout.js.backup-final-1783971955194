@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata = {
   title: "CLICK.COM del Caribe",
-  description: "Sistema administrativo y seguimiento de reparaciones",
+  description: "Sistema de reparación, seguimiento y administración de servicios técnicos.",
 };
 
 export default function RootLayout({ children }) {

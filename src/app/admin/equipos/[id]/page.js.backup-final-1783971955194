@@ -265,7 +265,7 @@ export default function EquipoDetallePage({ params }) {
                     <td className="px-4 py-3 font-semibold text-[#102033]">{repair.recibidoPor}</td>
                     <td className="px-4 py-3 font-semibold text-[#102033]">{repair.tecnico}</td>
                     <td className="px-4 py-3 font-semibold text-[#526174]">{repair.lastAdvance}</td>
-                    <td className="px-4 py-3 text-right"><Link href={`/admin/reparaciones/${repair.folio}`} className="font-black text-[#0077B6] hover:underline">Ver</Link></td>
+                    <td className="px-4 py-3 text-right"><Link href={`/admin/reparaciones/${repair.folio}`} className="font-black text-[#0077B6] hover:underline">Ver ficha</Link></td>
                   </tr>
                 ))}
               </tbody>

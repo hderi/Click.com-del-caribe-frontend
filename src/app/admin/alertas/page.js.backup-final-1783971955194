@@ -1,11 +1,5 @@
 "use client";
 
-
-function asText(value) {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return value.nombre || value.folio || value.usuario || value.id || "";
-  return String(value);
-}
 import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -120,10 +114,10 @@ export default function AlertasPage() {
           ) : current.map((item, index) => (
             <a key={item.id || item.folio || index} href={item.folio ? `/admin/reparaciones/${item.folio}` : "/admin/configuracion"} className="block rounded-xl border border-[#E1EDF5] bg-[#F8FBFD] p-4 transition hover:border-[#009FE3]">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <strong>{asText(item.folio || item.usuario || item.nombre || "Registro")}</strong>
+                <strong>{item.folio || item.usuario || item.nombre || "Registro"}</strong>
                 <span className="text-xs font-bold text-[#B65F18]">{item.estado || item.rol || "Pendiente"}</span>
               </div>
-              <p className="mt-1 text-sm text-[#496178]">{labelClient(item)} · {asText(labelEquipo(item))}</p>
+              <p className="mt-1 text-sm text-[#496178]">{labelClient(item)} · {labelEquipo(item)}</p>
             </a>
           ))}
         </div>

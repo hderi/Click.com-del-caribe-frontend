@@ -104,7 +104,7 @@ export default function ClientsTable({ clients, loading = false, onNewClient }) 
                   <td className="px-3 py-4"><StatusBadge active={client.active} /></td>
                   <td className="px-5 py-4 text-right sm:px-6">
                     <div className="inline-flex items-center gap-1 rounded-2xl border border-[#C9D8E5] bg-[#EEF5FA] p-1">
-                      <Link href={`/admin/clientes/${client.id}`} className="rounded-xl px-4 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">Ver</Link>
+                      <Link href={`/admin/clientes/${client.id}`} className="rounded-xl px-4 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">Ver ficha</Link>
                     </div>
                   </td>
                 </tr>

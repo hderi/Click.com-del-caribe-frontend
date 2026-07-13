@@ -1,391 +1,196 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { formatDate, formatTime, formatMoney } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-const ESTADOS = ["Recibido", "DiagnÃ³stico", "En reparaciÃ³n", "Esperando refacciÃ³n", "Finalizado", "Entregado"];
-
-function getToken() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("clickcom_token") || localStorage.getItem("token") || "";
+function value(...items) {
+  return items.find((item) => item !== undefined && item !== null && item !== "") ?? "—";
 }
 
-function authHeaders(extra = {}) {
-  const token = getToken();
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...extra,
-  };
-}
-
-function norm(value) {
-  return String(value || "").trim();
-}
-
-function money(value) {
-  const n = Number(value || 0);
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number.isFinite(n) ? n : 0);
-}
-
-function dateOnly(value) {
-  if (!value) return "â€”";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat("es-MX", {
-    timeZone: "America/Cancun",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(d);
-}
-
-function timeOnly(value) {
-  if (!value) return "â€”";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat("es-MX", {
-    timeZone: "America/Cancun",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
-}
-
-function normalizePhoto(photo) {
-  const raw = typeof photo === "string" ? photo : photo?.url || photo?.path || photo?.src || photo?.dataUrl || "";
-  if (!raw) return null;
-  const src = raw.startsWith("/uploads") ? `${API_URL}${raw}` : raw;
-  return {
-    src,
-    name: typeof photo === "string" ? "Evidencia" : photo?.nombre || photo?.name || "Evidencia",
-  };
-}
-
-function getPhotos(repair) {
-  const all = [
+function normalizePhotos(repair) {
+  const photos = [
     ...(Array.isArray(repair?.fotosRecepcion) ? repair.fotosRecepcion : []),
-    ...(Array.isArray(repair?.fotos_recepcion) ? repair.fotos_recepcion : []),
     ...(Array.isArray(repair?.fotos) ? repair.fotos : []),
-    ...(Array.isArray(repair?.evidencias) ? repair.evidencias : []),
-  ].map(normalizePhoto).filter(Boolean);
-
+    ...(Array.isArray(repair?.imagenes) ? repair.imagenes : []),
+  ];
   const seen = new Set();
-  return all.filter((item) => {
-    if (seen.has(item.src)) return false;
-    seen.add(item.src);
+  return photos.filter((photo) => {
+    const src = typeof photo === "string" ? photo : photo?.url || photo?.ruta || photo?.src;
+    if (!src || seen.has(src)) return false;
+    seen.add(src);
     return true;
   });
 }
 
-function Field({ label, value }) {
+function photoSrc(photo) {
+  const src = typeof photo === "string" ? photo : photo?.url || photo?.ruta || photo?.src;
+  if (!src) return "";
+  if (src.startsWith("http") || src.startsWith("data:")) return src;
+  return `${API_BASE}${src.startsWith("/") ? src : `/${src}`}`;
+}
+
+function Field({ label, children }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-[#E1EDF5] py-2 last:border-0">
-      <span className="text-sm text-[#496178]">{label}</span>
-      <strong className="text-right text-sm font-semibold text-[#0F2236]">{value || "â€”"}</strong>
+    <div className="flex items-center justify-between gap-4 border-b border-[#DCE8F0] py-2 last:border-b-0">
+      <span className="text-[#5D7188]">{label}</span>
+      <strong className="text-right font-semibold text-[#102033]">{children || "—"}</strong>
     </div>
   );
 }
 
 function Box({ title, children }) {
   return (
-    <section className="rounded-2xl border border-[#C9DCEB] bg-white p-5 shadow-sm">
-      <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#47627A]">{title}</h2>
+    <section className="cc-card bg-white p-4">
+      <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[#43576F]">{title}</h3>
       {children}
     </section>
   );
 }
 
 export default function RepairDetail({ repair }) {
-  const searchParams = useSearchParams();
-  const mode = searchParams.get("modo");
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const photos = useMemo(() => getPhotos(repair), [repair]);
-  const pago = repair?.pago || repair?.payment || {};
-  const historial = Array.isArray(repair?.historial) ? repair.historial : Array.isArray(repair?.timeline) ? repair.timeline : [];
-
-  const [paymentForm, setPaymentForm] = useState({
-    costoServicio: pago.costoServicio ?? pago.costo_servicio ?? repair?.costoServicio ?? "",
-    anticipo: pago.anticipo ?? repair?.anticipo ?? "",
-    formaPago: pago.formaPago ?? pago.forma_pago ?? repair?.formaPago ?? "por_definir",
-    factura: pago.factura ?? repair?.factura ?? "No",
-    numeroFactura: pago.numeroFactura ?? pago.numero_factura ?? repair?.numeroFactura ?? "",
-    notasPago: pago.notasPago ?? pago.notas_pago ?? "",
-  });
-
-  const [advanceForm, setAdvanceForm] = useState({
-    estado: repair?.estado || "Recibido",
-    titulo: "",
-    descripcion: "",
-    visibleCliente: true,
-    fotos: [],
-  });
-
   if (!repair) {
     return (
-      <div className="rounded-2xl border border-[#C9DCEB] bg-white p-8 text-[#0F2236]">
-        No se encontrÃ³ la orden solicitada.
+      <div className="space-y-4 p-6">
+        <Link href="/admin/reparaciones" className="text-[#0078B8]">← Volver a reparaciones</Link>
+        <section className="cc-card p-5">
+          <h1>Orden no encontrada</h1>
+          <p className="mt-2 text-[#5D7188]">No existe una reparación con ese folio.</p>
+        </section>
       </div>
     );
   }
 
-  const folio = repair.folio || repair.id || "Sin folio";
-  const costo = Number(paymentForm.costoServicio || 0);
-  const anticipo = Number(paymentForm.anticipo || 0);
-  const saldo = Math.max(costo - anticipo, 0);
-
-  async function savePayment(e) {
-    e.preventDefault();
-    setMessage("");
-    if (Number(paymentForm.anticipo || 0) > Number(paymentForm.costoServicio || 0)) {
-      setMessage("El anticipo no puede ser mayor al costo del servicio.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_URL}/api/reparaciones/${encodeURIComponent(folio)}`, {
-        method: "PATCH",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          pago: paymentForm,
-          movimientoPago: {
-            fecha: new Date().toISOString(),
-            saldo,
-          },
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setMessage("Pago actualizado y movimiento guardado.");
-    } catch (err) {
-      setMessage(err?.message || "No se pudo actualizar el pago.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveAdvance(e) {
-    e.preventDefault();
-    setMessage("");
-    if (!advanceForm.titulo.trim() || !advanceForm.descripcion.trim()) {
-      setMessage("Escribe tÃ­tulo y descripciÃ³n del avance.");
-      return;
-    }
-    if (!window.confirm("Â¿Guardar este avance y hacerlo visible para el cliente?")) return;
-    setSaving(true);
-    try {
-      const formData = new FormData();
-      formData.append("estado", advanceForm.estado);
-      formData.append("titulo", advanceForm.titulo);
-      formData.append("descripcion", advanceForm.descripcion);
-      formData.append("visibleCliente", "true");
-      for (const file of advanceForm.fotos) formData.append("fotos", file);
-      const res = await fetch(`${API_URL}/api/reparaciones/${encodeURIComponent(folio)}/avance`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: formData,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setMessage("Avance guardado correctamente.");
-    } catch (err) {
-      setMessage(err?.message || "No se pudo guardar el avance.");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const folio = value(repair.folio, repair.id);
+  const cliente = repair.cliente || {};
+  const equipo = repair.equipo || {};
+  const pago = repair.pago || {};
+  const garantia = repair.garantia || {};
+  const historial = Array.isArray(repair.historial) ? repair.historial : Array.isArray(repair.timeline) ? repair.timeline : [];
+  const photos = normalizePhotos(repair);
+  const ingreso = value(repair.fechaIngreso, repair.fecha, repair.creadoEn, repair.dateIn);
+  const entrada = value(repair.horaEntrada, repair.creadoEn);
 
   return (
-    <div className="space-y-5 text-[#0F2236]">
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print-area, .print-area * { visibility: visible; }
-          .print-area { position: absolute; inset: 0; width: 100%; background: white; padding: 0; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
+    <div className="space-y-4 p-4 md:p-6">
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
-        <a href="/admin/reparaciones" className="font-semibold text-[#0077B6]">â† Volver</a>
+        <div>
+          <Link href="/admin/reparaciones" className="text-sm font-semibold text-[#0078B8]">← Volver a reparaciones</Link>
+          <h1 className="mt-2">Orden {folio}</h1>
+          <p className="text-[#5D7188]">
+            Ingresado el {formatDate(ingreso)} · Recibió: {value(repair.recibio, repair.recibidoPor)} · Técnico: {value(repair.tecnico, repair.tecnicoAsignado)}
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => window.print()}
-          className="rounded-xl bg-[#009FE3] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#FF7900]"
+          className="rounded-md bg-[#0078B8] px-4 py-2 font-semibold text-white"
         >
           Imprimir orden
         </button>
       </div>
 
-      {mode === "pago" && (
-        <form onSubmit={savePayment} className="no-print rounded-2xl border border-[#C9DCEB] bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-bold">Editar pago / factura</h2>
-          <p className="mt-1 text-sm text-[#496178]">Se guarda el movimiento con fecha, hora y usuario.</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <label className="space-y-2 text-sm font-semibold">
-              Costo del servicio
-              <input className="w-full rounded-xl border border-[#C9DCEB] p-3" value={paymentForm.costoServicio} onChange={(e) => setPaymentForm({ ...paymentForm, costoServicio: e.target.value })} />
-            </label>
-            <label className="space-y-2 text-sm font-semibold">
-              Anticipo
-              <input className="w-full rounded-xl border border-[#C9DCEB] p-3" value={paymentForm.anticipo} onChange={(e) => setPaymentForm({ ...paymentForm, anticipo: e.target.value })} />
-            </label>
-            <label className="space-y-2 text-sm font-semibold">
-              Forma de pago
-              <select className="w-full rounded-xl border border-[#C9DCEB] p-3" value={paymentForm.formaPago} onChange={(e) => setPaymentForm({ ...paymentForm, formaPago: e.target.value })}>
-                <option value="por_definir">Por definir</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta_debito">Tarjeta de dÃ©bito</option>
-                <option value="tarjeta_credito">Tarjeta de crÃ©dito</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="cheque">Cheque</option>
-              </select>
-            </label>
-            <label className="space-y-2 text-sm font-semibold">
-              Factura
-              <select className="w-full rounded-xl border border-[#C9DCEB] p-3" value={paymentForm.factura} onChange={(e) => setPaymentForm({ ...paymentForm, factura: e.target.value })}>
-                <option>No</option>
-                <option>SÃ­</option>
-              </select>
-            </label>
-            <label className="space-y-2 text-sm font-semibold">
-              NÃºmero de factura
-              <input disabled={paymentForm.factura !== "SÃ­"} className="w-full rounded-xl border border-[#C9DCEB] p-3 disabled:bg-slate-100" value={paymentForm.numeroFactura} onChange={(e) => setPaymentForm({ ...paymentForm, numeroFactura: e.target.value })} />
-            </label>
-            <div className="rounded-2xl border border-[#F4B36D] bg-[#FFF3E6] p-4">
-              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#A85A0A]">Saldo pendiente</span>
-              <p className="mt-2 text-2xl font-black text-[#B65F18]">{money(saldo)}</p>
-            </div>
-          </div>
-          <label className="mt-4 block space-y-2 text-sm font-semibold">
-            Notas de pago
-            <textarea className="min-h-24 w-full rounded-xl border border-[#C9DCEB] p-3" value={paymentForm.notasPago} onChange={(e) => setPaymentForm({ ...paymentForm, notasPago: e.target.value })} />
-          </label>
-          <button disabled={saving} className="mt-4 rounded-xl bg-[#FF7900] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">Guardar pago</button>
-        </form>
-      )}
-
-      {mode === "avance" && (
-        <form onSubmit={saveAdvance} className="no-print rounded-2xl border border-[#C9DCEB] bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-bold">Actualizar avance tÃ©cnico</h2>
-          <p className="mt-1 text-sm text-[#496178]">Este avance serÃ¡ visible para el cliente.</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-sm font-semibold">
-              Estado
-              <select className="w-full rounded-xl border border-[#C9DCEB] p-3" value={advanceForm.estado} onChange={(e) => setAdvanceForm({ ...advanceForm, estado: e.target.value })}>
-                {ESTADOS.map((estado) => <option key={estado}>{estado}</option>)}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm font-semibold">
-              TÃ­tulo del avance
-              <input className="w-full rounded-xl border border-[#C9DCEB] p-3" value={advanceForm.titulo} onChange={(e) => setAdvanceForm({ ...advanceForm, titulo: e.target.value })} />
-            </label>
-          </div>
-          <textarea className="mt-4 min-h-28 w-full rounded-xl border border-[#C9DCEB] p-3" placeholder="Describe quÃ© se revisÃ³, quÃ© se encontrÃ³ o quÃ© avance debe ver el cliente." value={advanceForm.descripcion} onChange={(e) => setAdvanceForm({ ...advanceForm, descripcion: e.target.value })} />
-          <label className="mt-4 block text-sm font-semibold">
-            Fotos del avance
-            <input type="file" multiple accept="image/*" className="mt-2 block w-full rounded-xl border border-[#C9DCEB] p-3" onChange={(e) => setAdvanceForm({ ...advanceForm, fotos: Array.from(e.target.files || []) })} />
-          </label>
-          <button disabled={saving} className="mt-4 rounded-xl bg-[#FF7900] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">Guardar avance</button>
-        </form>
-      )}
-
-      {message && <p className="no-print rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-sm font-bold text-[#334155]">{message}</p>}
-
-      <article className="print-area rounded-2xl border border-[#C9DCEB] bg-white p-6 shadow-sm">
-        <header className="flex items-start justify-between border-b border-[#C9DCEB] pb-5">
+      <section className="cc-card bg-white p-5">
+        <div className="mb-5 flex items-start justify-between border-b border-[#DCE8F0] pb-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7900]">Orden de servicio</p>
-            <h1 className="mt-1 text-3xl font-black">{folio}</h1>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[#C76510]">Orden de servicio</p>
+            <h2 className="mt-1 text-3xl font-bold">{folio}</h2>
           </div>
           <div className="text-right">
             <strong>CLICK.COM del Caribe</strong>
-            <p className="text-sm text-[#496178]">Servicio especializado en informÃ¡tica</p>
+            <p className="text-xs text-[#5D7188]">Servicio especializado en informática</p>
           </div>
-        </header>
+        </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <Box title="Cliente">
-            <Field label="Nombre" value={repair.cliente?.nombre || repair.clienteNombre || repair.client} />
-            <Field label="TelÃ©fono" value={repair.cliente?.telefono || repair.telefono || repair.phone} />
-            <Field label="Correo" value={repair.cliente?.correo || repair.correo || repair.email} />
+            <Field label="Nombre">{value(cliente.nombre, repair.clienteNombre, repair.client)}</Field>
+            <Field label="Teléfono">{value(cliente.telefono, repair.telefono, repair.phone)}</Field>
+            <Field label="Correo">{value(cliente.correo, repair.correo, repair.email)}</Field>
           </Box>
+
           <Box title="Equipo">
-            <Field label="Tipo" value={repair.equipo?.tipo || repair.tipoEquipo || repair.deviceType} />
-            <Field label="Marca / modelo" value={[repair.equipo?.marca || repair.marca || repair.brand, repair.equipo?.modelo || repair.modelo || repair.model].filter(Boolean).join(" ")} />
-            <Field label="NÃºmero de serie" value={repair.equipo?.numeroSerie || repair.numeroSerie || repair.serialNumber} />
+            <Field label="Tipo">{value(equipo.tipo, repair.tipoEquipo, repair.deviceType)}</Field>
+            <Field label="Marca / modelo">{value([equipo.marca, equipo.modelo].filter(Boolean).join(" "), repair.equipoNombre, repair.device)}</Field>
+            <Field label="Número de serie">{value(equipo.serie, repair.numeroSerie, repair.serialNumber)}</Field>
           </Box>
-          <Box title="RecepciÃ³n">
-            <Field label="RecibiÃ³" value={repair.recibio || repair.recibidoPor} />
-            <Field label="Hora de entrada" value={timeOnly(repair.horaEntrada || repair.creadoEn || repair.fechaIngreso)} />
-            <Field label="TÃ©cnico / encargado" value={repair.tecnico || repair.tech} />
+
+          <Box title="Recepción">
+            <Field label="Recibió">{value(repair.recibio, repair.recibidoPor)}</Field>
+            <Field label="Hora de entrada">{formatTime(entrada)}</Field>
+            <Field label="Técnico / encargado">{value(repair.tecnico, repair.tecnicoAsignado)}</Field>
           </Box>
+
           <Box title="Fechas y estado">
-            <Field label="Ingreso" value={dateOnly(repair.fechaIngreso || repair.creadoEn || repair.dateIn)} />
-            <Field label="Entrega estimada" value={dateOnly(repair.fechaEntregaEstimada || repair.entregaEstimada || repair.dateEstimated)} />
-            <Field label="Estado" value={repair.estado || repair.status} />
+            <Field label="Ingreso">{formatDate(ingreso)}</Field>
+            <Field label="Entrega estimada">{formatDate(value(repair.fechaEntregaEstimada, repair.dateEstimated))}</Field>
+            <Field label="Estado">{value(repair.estado, repair.status)}</Field>
           </Box>
+
           <Box title="Pago y anticipo">
-            <Field label="Costo del servicio" value={money(paymentForm.costoServicio)} />
-            <Field label="Anticipo" value={money(paymentForm.anticipo)} />
-            <Field label="Forma de pago" value={paymentForm.formaPago} />
-            <Field label="Saldo" value={money(saldo)} />
-            <Field label="Factura" value={paymentForm.factura} />
-            <Field label="NÃºmero de factura" value={paymentForm.numeroFactura} />
+            <Field label="Costo del servicio">{formatMoney(value(pago.costoServicio, repair.costoServicio))}</Field>
+            <Field label="Anticipo">{formatMoney(value(pago.anticipo, repair.anticipo))}</Field>
+            <Field label="Forma de pago">{value(pago.metodoPago, repair.metodoPago)}</Field>
+            <Field label="Saldo">{formatMoney(value(pago.saldo, repair.saldo))}</Field>
+            <Field label="Factura">{value(pago.factura, repair.factura)}</Field>
           </Box>
-          <Box title="GarantÃ­a">
-            <Field label="Aplica" value={repair.garantia?.aplica || repair.garantiaAplica} />
-            <Field label="DÃ­as" value={repair.garantia?.dias || repair.diasGarantia} />
-            <Field label="Nota" value={repair.garantia?.nota || repair.notaGarantia} />
+
+          <Box title="Garantía">
+            <Field label="Aplica">{value(garantia.aplica, repair.garantiaAplica)}</Field>
+            <Field label="Días">{value(garantia.dias, repair.diasGarantia)}</Field>
+            <Field label="Nota">{value(garantia.nota, repair.notaGarantia)}</Field>
           </Box>
+
           <Box title="Falla reportada">
-            <p className="text-sm font-semibold leading-7">{repair.problema || repair.problem || repair.falla || "â€”"}</p>
+            <p>{value(repair.problema, repair.fallaReportada, repair.problem)}</p>
           </Box>
-          <Box title="Observaciones de recepciÃ³n">
-            <p className="text-sm font-semibold leading-7">{repair.observacionesRecepcion || repair.observaciones || repair.observations || "â€”"}</p>
+
+          <Box title="Observaciones de recepción">
+            <p>{value(repair.observacionesRecepcion, repair.observaciones)}</p>
           </Box>
+
           <Box title="Accesorios recibidos">
-            <p className="text-sm font-semibold leading-7">{Array.isArray(repair.accesorios) ? repair.accesorios.join(", ") : repair.accesorios || "â€”"}</p>
+            <p>{Array.isArray(repair.accesorios) ? repair.accesorios.join(", ") : value(repair.accesorios)}</p>
           </Box>
-          <Box title="Estado fÃ­sico">
-            <p className="text-sm font-semibold leading-7">{Array.isArray(repair.estadoFisico) ? repair.estadoFisico.join(", ") : repair.estadoFisico || "â€”"}</p>
+
+          <Box title="Estado físico">
+            <p>{Array.isArray(repair.estadoFisico) ? repair.estadoFisico.join(", ") : value(repair.estadoFisico)}</p>
           </Box>
         </div>
 
         <Box title="Fotos / evidencia">
-          {photos.length === 0 ? (
-            <p className="text-sm text-[#496178]">Sin fotos registradas.</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {photos.map((photo) => (
-                <figure key={photo.src} className="overflow-hidden rounded-xl border border-[#C9DCEB]">
-                  <img src={photo.src} alt={photo.name} className="h-40 w-full object-cover" />
-                  <figcaption className="truncate p-2 text-xs font-semibold text-[#496178]">{photo.name}</figcaption>
+          {photos.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {photos.map((photo, index) => (
+                <figure key={photoSrc(photo) || index} className="overflow-hidden rounded-md border border-[#DCE8F0]">
+                  <img src={photoSrc(photo)} alt={photo?.nombre || `Evidencia ${index + 1}`} className="h-44 w-full object-cover" />
+                  <figcaption className="truncate px-2 py-2 text-xs text-[#5D7188]">{photo?.nombre || `Evidencia ${index + 1}`}</figcaption>
                 </figure>
               ))}
             </div>
+          ) : (
+            <p className="text-[#5D7188]">Sin fotos registradas.</p>
           )}
         </Box>
 
-        <Box title="Historial tÃ©cnico">
-          {historial.length === 0 ? (
-            <p className="text-sm text-[#496178]">Sin movimientos registrados.</p>
-          ) : (
-            <div className="space-y-3">
-              {historial.map((item, index) => (
-                <div key={item.id || index} className="rounded-xl border border-[#E1EDF5] p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <strong>{item.titulo || item.title || item.estado || "Movimiento"}</strong>
-                    <span className="text-xs text-[#496178]">{dateOnly(item.fecha || item.createdAt)} {timeOnly(item.fecha || item.createdAt)}</span>
-                  </div>
-                  <p className="mt-2 text-sm text-[#496178]">{item.descripcion || item.description || "â€”"}</p>
-                  <p className="mt-2 text-xs font-semibold text-[#496178]">Por: {item.usuario || item.tech || item.creadoPor || "â€”"}</p>
+        <Box title="Historial técnico">
+          <div className="space-y-3">
+            {historial.length ? historial.map((item, index) => (
+              <div key={item.id || index} className="rounded-md border border-[#DCE8F0] p-3">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <strong>{value(item.titulo, item.title, "Movimiento")}</strong>
+                  <span className="text-xs text-[#5D7188]">{formatDate(value(item.fecha, item.date, item.creadoEn))} {formatTime(value(item.fecha, item.date, item.creadoEn))}</span>
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="mt-1 text-[#334155]">{value(item.descripcion, item.description)}</p>
+                <p className="mt-1 text-xs text-[#5D7188]">Por: {value(item.usuario, item.tecnico, item.tech)}</p>
+              </div>
+            )) : (
+              <p className="text-[#5D7188]">Sin movimientos registrados.</p>
+            )}
+          </div>
         </Box>
-      </article>
+      </section>
     </div>
   );
 }
