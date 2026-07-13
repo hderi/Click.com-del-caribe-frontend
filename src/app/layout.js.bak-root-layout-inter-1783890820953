@@ -1,0 +1,28 @@
+import { Inter } from "next/font/google";
+import "../app/globals.css";
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 3,
+  userScalable: true,
+};
+
+export const metadata = {
+  title: 'CLICK.COM Caribe — Reparación y Soporte Tecnológico',
+  description: 'Servicio profesional de reparación y soporte técnico en el Caribe Mexicano.',
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="es">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body className={inter.className}>{children}</body>
+    </html>
+  );
+}
+

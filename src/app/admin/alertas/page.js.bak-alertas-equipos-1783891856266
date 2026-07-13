@@ -1,0 +1,37 @@
+import AdminUtilityPage from "@/components/admin/AdminUtilityPage";
+
+export default function AlertasPage() {
+  return (
+    <AdminUtilityPage
+      eyebrow="Centro de avisos"
+      title="Alertas del taller"
+      description="Concentra situaciones que requieren atención antes de que se conviertan en retrasos: órdenes sin movimiento, fechas vencidas, equipos listos sin recoger y usuarios pendientes de configurar su acceso."
+      stats={[
+        { label: "Sin movimiento", value: "0", note: "más de 3 días", color: "#C76A24" },
+        { label: "Fecha vencida", value: "0", note: "entrega rebasada", color: "#A7771D" },
+        { label: "Sin recoger", value: "0", note: "finalizados", color: "#2E7D55" },
+        { label: "Accesos", value: "0", note: "contraseña pendiente", color: "#3279A8" },
+      ]}
+      sections={[
+        {
+          title: "Órdenes que se atoraron",
+          description: "Aquí aparecerán folios que no han tenido avances recientes.",
+          badge: "Automático",
+          items: [
+            { title: "Sin movimiento por más de 3 días", text: "Se calculará con la última observación técnica o cambio de estado guardado en el historial.", tag: "Prioridad" },
+            { title: "Fecha estimada vencida", text: "Tomará la fecha de entrega estimada y la comparará con el día actual.", tag: "Revisar" },
+          ],
+        },
+        {
+          title: "Pendientes administrativos",
+          description: "Avisos que ayudan a recepción y administración a no perder seguimiento.",
+          items: [
+            { title: "Equipo finalizado sin recoger", text: "Se activará cuando una reparación esté lista y todavía no se marque como entregada.", tag: "Entrega" },
+            { title: "Usuario con contraseña pendiente", text: "Se mostrará cuando un usuario nuevo todavía no haya cambiado su contraseña inicial.", tag: "Seguridad" },
+          ],
+        },
+      ]}
+      footerNote="Este módulo no reemplaza Reparaciones; sirve para detectar rápido lo que necesita atención sin abrir folio por folio."
+    />
+  );
+}

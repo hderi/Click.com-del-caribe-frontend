@@ -1,0 +1,488 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import StatusBadge from "@/components/admin/StatusBadge";
+import RepairTimeline from "@/components/admin/RepairTimeline";
+import { dedupePhotos, formatDateOnly, formatDateTime, resolveAssetUrl } from "@/lib/adminFormat";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+const STATUS_OPTIONS = [
+  { value: "recibido", label: "Recibido" },
+  { value: "diagnostico", label: "Diagnóstico" },
+  { value: "en_reparacion", label: "En reparación" },
+  { value: "esperando_refaccion", label: "Esperando refacción" },
+  { value: "finalizado", label: "Finalizado" },
+  { value: "entregado", label: "Entregado" },
+];
+
+const PAYMENT_METHODS = [
+  { value: "por_definir", label: "Por definir" },
+  { value: "efectivo", label: "Efectivo" },
+  { value: "tarjeta_debito", label: "Tarjeta de débito" },
+  { value: "tarjeta_credito", label: "Tarjeta de crédito" },
+  { value: "transferencia", label: "Transferencia" },
+  { value: "cheque", label: "Cheque" },
+];
+
+function getAuthHeaders(extra = {}) {
+  if (typeof window === "undefined") return extra;
+  const token = localStorage.getItem("clickcom_token") || "";
+  return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+function labelStatus(value) {
+  return STATUS_OPTIONS.find((item) => item.value === value)?.label || value || "Recibido";
+}
+
+function labelPayment(value) {
+  return PAYMENT_METHODS.find((item) => item.value === value)?.label || value || "Por definir";
+}
+
+function money(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  });
+}
+
+function normalizeList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string") {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function isClosed(repair) {
+  return ["entregado", "cerrado"].includes(String(repair?.status || "").toLowerCase());
+}
+
+function cleanPhotoSource(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return resolveAssetUrl(photo);
+  return resolveAssetUrl(photo.url || photo.preview || photo.dataUrl || photo.src || "");
+}
+
+export default function RepairDetail({ repair: initialRepair }) {
+  const searchParams = useSearchParams();
+  const vista = searchParams.get("vista") || "ficha";
+  const [repair, setRepair] = useState(initialRepair);
+  const [status, setStatus] = useState(initialRepair?.status || "recibido");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [payment, setPayment] = useState(() => ({
+    costoServicio: initialRepair?.payment?.costoServicio || initialRepair?.advance?.costoServicio || "",
+    anticipo: initialRepair?.payment?.anticipo || initialRepair?.advance?.monto || "",
+    formaPago: initialRepair?.payment?.formaPago || initialRepair?.advance?.formaPago || "por_definir",
+    factura: initialRepair?.payment?.factura || "No",
+    numeroFactura: initialRepair?.payment?.numeroFactura || "",
+    notasPago: initialRepair?.payment?.notasPago || "",
+  }));
+
+  const photos = useMemo(() => dedupePhotos(repair?.photos || []), [repair]);
+  const accessories = normalizeList(repair?.accessories);
+  const physicalConditions = normalizeList(repair?.physicalConditions);
+  const saldo = Math.max(Number(payment.costoServicio || 0) - Number(payment.anticipo || 0), 0);
+
+  if (!repair) {
+    return (
+      <div className="rounded-2xl border border-[#C8D6E3] bg-white p-8 text-center">
+        <h2 className="text-xl font-black text-[#102033]">Reparación no encontrada</h2>
+        <p className="mt-2 text-sm font-semibold text-[#526174]">No se encontró información para este folio.</p>
+        <Link href="/admin/reparaciones" className="mt-5 inline-flex rounded-xl bg-[#0EA5E9] px-5 py-3 text-sm font-black text-white">
+          Volver a reparaciones
+        </Link>
+      </div>
+    );
+  }
+
+  async function refreshRepair(data) {
+    const updated = data?.reparacion || data;
+    if (!updated || !updated.folio) return;
+    setRepair((current) => ({
+      ...current,
+      status: updated.estado || current.status,
+      statusLabel: labelStatus(updated.estado || current.status),
+      payment: updated.pago || current.payment,
+      advance: updated.anticipo || current.advance,
+      timeline: (updated.historial || current.timeline || []).map((item) => ({
+        title: item.titulo || item.title || item.estado || "Actualización",
+        date: formatDateTime(item.fecha || item.date),
+        description: item.descripcion || item.description || "",
+        tech: item.tecnico || item.tech || repair.tech || "Taller",
+        color: item.estado === "entregado" ? "#22C55E" : item.estado === "en_reparacion" ? "#0066FF" : "#FF7A00",
+      })),
+    }));
+  }
+
+  async function saveProgress(event) {
+    event.preventDefault();
+    setMessage("");
+    if (!title.trim() || !description.trim()) {
+      setMessage("Escribe título y descripción del avance.");
+      return;
+    }
+    if (!window.confirm("¿Guardar este avance y mostrarlo al cliente?")) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/reparaciones/${repair.folio}`, {
+        method: "PATCH",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          estado: status,
+          historialItem: {
+            estado: status,
+            titulo: title.trim(),
+            descripcion: description.trim(),
+            tecnico: repair.tech,
+            visibleCliente: true,
+          },
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo guardar el avance.");
+      await refreshRepair(data);
+      setTitle("");
+      setDescription("");
+      setMessage("Avance guardado correctamente.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function savePayment(event) {
+    event.preventDefault();
+    setMessage("");
+    const costo = Number(payment.costoServicio || 0);
+    const anticipo = Number(payment.anticipo || 0);
+    if (anticipo > costo) {
+      setMessage("El anticipo no puede ser mayor al costo del servicio.");
+      return;
+    }
+    if (!window.confirm("¿Guardar cambios de pago, saldo y factura?")) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/reparaciones/${repair.folio}`, {
+        method: "PATCH",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ pago: payment }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo guardar el pago.");
+      await refreshRepair(data);
+      setRepair((current) => ({ ...current, payment }));
+      setMessage("Pago actualizado correctamente.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sendWhatsapp() {
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/reparaciones/${repair.folio}/whatsapp`, {
+        method: "POST",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo preparar WhatsApp.");
+      if (data.url) window.open(data.url, "_blank", "noopener,noreferrer");
+      setMessage("Link de seguimiento preparado para WhatsApp.");
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between print:hidden">
+        <div>
+          <Link href="/admin/reparaciones" className="text-sm font-black text-[#006FAE]">← Volver a reparaciones</Link>
+          <div className="mt-2 flex items-center gap-3">
+            <h1 className="text-3xl font-black tracking-[-0.03em] text-[#102033]">Orden {repair.folio}</h1>
+            <StatusBadge status={repair.status} />
+          </div>
+          <p className="mt-1 text-sm font-semibold text-[#526174]">
+            Ingresado el {repair.dateIn} · Recibió: {repair.receivedBy || "Sin registrar"} · Técnico: {repair.tech || "Sin asignar"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {vista !== "ficha" && <Link href={`/admin/reparaciones/${repair.folio}`} className="btn btn-soft">Ver ficha</Link>}
+          {!isClosed(repair) && <Link href={`/admin/reparaciones/${repair.folio}?vista=avance`} className="btn btn-warning">Editar</Link>}
+          <Link href={`/admin/reparaciones/${repair.folio}?vista=pago`} className="btn btn-soft">Pago / factura</Link>
+          <button onClick={sendWhatsapp} className="btn btn-success">WhatsApp</button>
+          <button onClick={() => window.print()} className="btn btn-primary">Imprimir orden</button>
+        </div>
+      </div>
+
+      {vista === "avance" ? (
+        <EditProgress
+          repair={repair}
+          status={status}
+          setStatus={setStatus}
+          title={title}
+          setTitle={setTitle}
+          description={description}
+          setDescription={setDescription}
+          message={message}
+          saving={saving}
+          onSubmit={saveProgress}
+        />
+      ) : vista === "pago" ? (
+        <EditPayment
+          payment={payment}
+          setPayment={setPayment}
+          saldo={saldo}
+          message={message}
+          saving={saving}
+          onSubmit={savePayment}
+        />
+      ) : (
+        <OrderSheet repair={repair} photos={photos} accessories={accessories} physicalConditions={physicalConditions} payment={payment} saldo={saldo} />
+      )}
+
+      <style jsx>{`
+        .btn {
+          border-radius: 14px;
+          padding: 11px 16px;
+          font-size: 13px;
+          font-weight: 900;
+          border: 1px solid #c8d6e3;
+          background: white;
+          color: #102033;
+          transition: 160ms ease;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { background: #0ea5e9; border-color: #0ea5e9; color: white; }
+        .btn-warning { background: #fff7ed; border-color: #ffb36b; color: #b45309; }
+        .btn-success { background: #f0fdf4; border-color: #9ae6b4; color: #047857; }
+        .btn-soft { background: #f8fbfd; color: #006fae; }
+        @media print {
+          :global(body) { background: #fff !important; }
+          :global(.admin-sidebar), :global(.admin-topbar), .print\\:hidden { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function EditProgress({ status, setStatus, title, setTitle, description, setDescription, message, saving, onSubmit, repair }) {
+  return (
+    <section className="rounded-3xl border border-[#C8D6E3] bg-white p-7 shadow-sm">
+      <h2 className="text-2xl font-black text-[#102033]">Editar avance técnico</h2>
+      <p className="mt-1 text-sm font-semibold text-[#526174]">Este avance siempre será visible para el cliente en su seguimiento.</p>
+      <form onSubmit={onSubmit} className="mt-6 rounded-2xl border border-[#D9E6EF] bg-[#F8FBFD] p-5">
+        <div className="grid gap-4 md:grid-cols-[240px_1fr]">
+          <Field label="Estado">
+            <select value={status} onChange={(event) => setStatus(event.target.value)} className="input">
+              {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Título del avance">
+            <input value={title} onChange={(event) => setTitle(event.target.value)} className="input" placeholder="Ej. Diagnóstico realizado" />
+          </Field>
+        </div>
+        <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="input mt-4 min-h-[130px]" placeholder="Describe qué se revisó, qué se encontró y qué avance debe ver el cliente." />
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-sm font-black text-[#102033]">Visible para el cliente</span>
+          <button disabled={saving} className="btn btn-primary">{saving ? "Guardando..." : "Guardar avance"}</button>
+        </div>
+      </form>
+      {message && <p className="mt-4 rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-sm font-bold text-[#334155]">{message}</p>}
+      <div className="mt-5"><RepairTimeline events={repair.timeline || []} /></div>
+    </section>
+  );
+}
+
+function EditPayment({ payment, setPayment, saldo, message, saving, onSubmit }) {
+  function setField(field, value) {
+    setPayment((current) => ({ ...current, [field]: value }));
+  }
+  return (
+    <section className="rounded-3xl border border-[#C8D6E3] bg-white p-7 shadow-sm">
+      <h2 className="text-2xl font-black text-[#102033]">Pago, saldo y factura</h2>
+      <p className="mt-1 text-sm font-semibold text-[#526174]">Edita únicamente la información administrativa del pago.</p>
+      <form onSubmit={onSubmit} className="mt-6 grid gap-4 rounded-2xl border border-[#D9E6EF] bg-[#F8FBFD] p-5 md:grid-cols-2">
+        <Field label="Costo del servicio">
+          <input type="number" min="0" value={payment.costoServicio} onChange={(event) => setField("costoServicio", event.target.value)} className="input" />
+        </Field>
+        <Field label="Anticipo">
+          <input type="number" min="0" value={payment.anticipo} onChange={(event) => setField("anticipo", event.target.value)} className="input" />
+        </Field>
+        <Field label="Forma de pago">
+          <select value={payment.formaPago} onChange={(event) => setField("formaPago", event.target.value)} className="input">
+            {PAYMENT_METHODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Factura">
+          <select value={payment.factura} onChange={(event) => setField("factura", event.target.value)} className="input">
+            <option>No</option>
+            <option>Sí</option>
+          </select>
+        </Field>
+        <Field label="Número de factura">
+          <input value={payment.numeroFactura} onChange={(event) => setField("numeroFactura", event.target.value)} className="input" placeholder="Ej. F-1024" />
+        </Field>
+        <div className="rounded-2xl border border-[#FFCF9C] bg-[#FFF7ED] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B45309]">Saldo pendiente</p>
+          <p className="mt-2 text-3xl font-black text-[#B45309]">{money(saldo)}</p>
+        </div>
+        <div className="md:col-span-2">
+          <Field label="Notas de pago">
+            <textarea value={payment.notasPago} onChange={(event) => setField("notasPago", event.target.value)} className="input min-h-[100px]" placeholder="Referencia, transferencia, pago con tarjeta, etc." />
+          </Field>
+        </div>
+        <div className="md:col-span-2 flex justify-end">
+          <button disabled={saving} className="btn btn-primary">{saving ? "Guardando..." : "Guardar pago"}</button>
+        </div>
+      </form>
+      {message && <p className="mt-4 rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-sm font-bold text-[#334155]">{message}</p>}
+    </section>
+  );
+}
+
+function OrderSheet({ repair, photos, accessories, physicalConditions, payment, saldo }) {
+  return (
+    <section className="rounded-3xl border border-[#C8D6E3] bg-white p-6 shadow-sm print:border-black print:shadow-none">
+      <header className="flex items-start justify-between border-b border-[#D9E6EF] pb-5">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FF6B00]">Orden de servicio</p>
+          <h2 className="text-4xl font-black text-[#102033]">{repair.folio}</h2>
+        </div>
+        <div className="text-right">
+          <p className="font-black text-[#102033]">CLICK.COM del Caribe</p>
+          <p className="text-xs font-semibold text-[#526174]">Servicio especializado en informática</p>
+        </div>
+      </header>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <Section title="Cliente">
+          <Row label="Nombre" value={repair.client} />
+          <Row label="Teléfono" value={repair.phone} />
+          <Row label="Correo" value={repair.email || "Sin correo"} />
+        </Section>
+        <Section title="Equipo">
+          <Row label="Tipo" value={repair.deviceType} />
+          <Row label="Marca / modelo" value={[repair.brand, repair.model].filter(Boolean).join(" ") || repair.device} />
+          <Row label="Número de serie" value={repair.serialNumber || "Sin serie"} />
+        </Section>
+        <Section title="Recepción">
+          <Row label="Recibió" value={repair.receivedBy} />
+          <Row label="Hora de entrada" value={repair.entryTime} />
+          <Row label="Técnico / encargado" value={repair.tech} />
+        </Section>
+        <Section title="Fechas y estado">
+          <Row label="Ingreso" value={repair.dateIn} />
+          <Row label="Entrega estimada" value={repair.dateEstimated} />
+          <Row label="Estado" value={repair.statusLabel || labelStatus(repair.status)} />
+        </Section>
+        <Section title="Pago y anticipo">
+          <Row label="Costo del servicio" value={money(payment.costoServicio)} />
+          <Row label="Anticipo" value={money(payment.anticipo)} />
+          <Row label="Forma de pago" value={labelPayment(payment.formaPago)} />
+          <Row label="Saldo" value={money(saldo)} />
+          <Row label="Factura" value={payment.factura || "No"} />
+          <Row label="Número de factura" value={payment.numeroFactura || "—"} />
+        </Section>
+        <Section title="Garantía">
+          <Row label="Aplica" value={repair.warranty?.aplica || "Por definir"} />
+          <Row label="Días" value={repair.warranty?.dias || "—"} />
+          <Row label="Nota" value={repair.warranty?.nota || "—"} />
+        </Section>
+        <Section title="Falla reportada" wide>
+          <TextBlock>{repair.problem}</TextBlock>
+        </Section>
+        <Section title="Observaciones de recepción">
+          <TextBlock>{repair.observations || "Sin observaciones."}</TextBlock>
+        </Section>
+        <Section title="Accesorios recibidos">
+          <ListBlock items={accessories} empty="Sin accesorios registrados." />
+        </Section>
+        <Section title="Estado físico">
+          <ListBlock items={physicalConditions} empty="Sin detalles físicos registrados." />
+        </Section>
+        <Section title="Fotos / evidencia">
+          <PhotoList photos={photos} />
+        </Section>
+        <Section title="Historial técnico" wide>
+          <RepairTimeline events={repair.timeline || []} />
+        </Section>
+      </div>
+    </section>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-[0.14em] text-[#526174]">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Section({ title, children, wide }) {
+  return (
+    <div className={`rounded-2xl border border-[#D9E6EF] bg-white p-4 ${wide ? "md:col-span-2" : ""}`}>
+      <h3 className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#526174]">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-[#EEF2F6] py-2 last:border-0">
+      <span className="text-sm font-semibold text-[#526174]">{label}</span>
+      <span className="text-right text-sm font-black text-[#102033]">{value || "—"}</span>
+    </div>
+  );
+}
+
+function TextBlock({ children }) {
+  return <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-[#102033]">{children || "—"}</p>;
+}
+
+function ListBlock({ items, empty }) {
+  if (!items.length) return <p className="text-sm font-semibold text-[#526174]">{empty}</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className="rounded-xl bg-[#EEF7FC] px-3 py-2 text-xs font-black text-[#102033]">{item}</span>
+      ))}
+    </div>
+  );
+}
+
+function PhotoList({ photos }) {
+  if (!photos.length) return <p className="text-sm font-semibold text-[#526174]">Sin fotos registradas.</p>;
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      {photos.map((photo, index) => {
+        const src = cleanPhotoSource(photo);
+        return (
+          <div key={`${photo?.nombre || photo?.name || src || index}`} className="rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-2">
+            {src ? (
+              <img src={src} alt={photo?.nombre || photo?.name || `Foto ${index + 1}`} className="h-36 w-full rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-[#C8D6E3] text-center text-xs font-bold text-[#526174]">Foto sin archivo guardado</div>
+            )}
+            <p className="mt-2 truncate text-xs font-bold text-[#526174]">{photo?.nombre || photo?.name || `Foto ${index + 1}`}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

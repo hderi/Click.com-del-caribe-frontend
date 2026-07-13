@@ -1,0 +1,388 @@
+﻿"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { dedupePhotos, formatDateOnly, formatDateTime, resolveAssetUrl } from "@/lib/adminFormat";
+import { useSearchParams } from "next/navigation";
+import StatusBadge from "@/components/admin/StatusBadge";
+import RepairTimeline from "@/components/admin/RepairTimeline";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function getAuthHeaders(extra = {}) {
+  if (typeof window === "undefined") return extra;
+  const token = localStorage.getItem("clickcom_token") || "";
+  return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+const STATUS_OPTIONS = [
+  { value: "recibido", label: "Recibido" },
+  { value: "diagnostico", label: "Diagnóstico" },
+  { value: "en_reparacion", label: "En reparación" },
+  { value: "esperando_refaccion", label: "Esperando refacción" },
+  { value: "finalizado", label: "Finalizado" },
+  { value: "entregado", label: "Entregado" },
+];
+
+function labelStatus(value) {
+  return STATUS_OPTIONS.find((item) => item.value === value)?.label || value || "Recibido";
+}
+
+function money(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export default function RepairDetail({ repair: initialRepair }) {
+  const searchParams = useSearchParams();
+  const vista = searchParams.get("vista") || "ficha";
+  const [repair, setRepair] = useState(initialRepair);
+  const [updateStatus, setUpdateStatus] = useState(initialRepair?.status || "recibido");
+  const [updateTitle, setUpdateTitle] = useState("");
+  const [updateDescription, setUpdateDescription] = useState("");
+  const [visibleClient, setVisibleClient] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  if (!repair) {
+    return (
+      <div className="rounded-2xl border border-[#C8D6E3] bg-white p-8 text-center">
+        <h2 className="text-lg font-black text-[#102033]">Reparación no encontrada</h2>
+        <Link href="/admin/reparaciones" className="mt-4 inline-block text-sm font-black text-[#0077B6]">Volver a reparaciones</Link>
+      </div>
+    );
+  }
+
+  const seguimientoLink = repair.trackingUrl || "";
+  const puedeActualizar = repair.status !== "entregado";
+
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(seguimientoLink);
+      setMessage("Link copiado.");
+    } catch {
+      window.prompt("Copia el link:", seguimientoLink);
+    }
+  }
+
+  async function enviarWhatsApp() {
+    const response = await fetch(`${API_URL}/api/reparaciones/${repair.folio}/whatsapp`, { method: "POST", headers: getAuthHeaders() });
+    const data = await response.json();
+    if (data.whatsappUrl) window.open(data.whatsappUrl, "_blank");
+  }
+
+  async function enviarEmail() {
+    const response = await fetch(`${API_URL}/api/reparaciones/${repair.folio}/email`, { method: "POST", headers: getAuthHeaders() });
+    const data = await response.json();
+    if (data.mailtoUrl) window.location.href = data.mailtoUrl;
+  }
+
+  async function guardarAvance(event) {
+    event.preventDefault();
+    /* Folio cerrado: se permite comentario interno o garantía sin cambiar estado. */
+    if (!updateTitle.trim() || !updateDescription.trim()) {
+      setMessage("Escribe título y descripción del avance.");
+      return;
+    }
+
+    if (!window.confirm("¿Seguro que quieres guardar este avance? Será visible para el cliente.")) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/reparaciones/${repair.folio}`, {
+        method: "PATCH",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          ...(puedeActualizar ? { estado: updateStatus } : {}),
+          historialItem: {
+            estado: puedeActualizar ? updateStatus : repair.status,
+            titulo: updateTitle.trim(),
+            descripcion: updateDescription.trim(),
+            visibleCliente: true,
+            tecnico: repair.tech || "Taller",
+          },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo guardar el avance");
+
+      const updated = mapRepairFromApi(data.reparacion, data.mensaje);
+      setRepair(updated);
+      setUpdateStatus(updated.status);
+      setUpdateTitle("");
+      setUpdateDescription("");
+      setMessage(puedeActualizar ? "Avance guardado correctamente." : "Comentario guardado correctamente.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6 text-[#102033]">
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          .repair-print-area, .repair-print-area * { visibility: visible !important; }
+          .repair-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; background: white !important; padding: 18px !important; }
+          .no-print { display: none !important; }
+          .print-card { box-shadow: none !important; border-color: #111827 !important; break-inside: avoid; page-break-inside: avoid; }
+          .print-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+          .print-tight { margin-top: 10px !important; padding: 10px !important; }
+        }
+      `}</style>
+
+      <Header repair={repair} puedeActualizar={puedeActualizar} enviarWhatsApp={enviarWhatsApp} />
+
+      {vista === "actualizar" ? (
+        <UpdatePanel repair={repair} puedeActualizar={puedeActualizar} updateStatus={updateStatus} setUpdateStatus={setUpdateStatus} updateTitle={updateTitle} setUpdateTitle={setUpdateTitle} updateDescription={updateDescription} setUpdateDescription={setUpdateDescription} visibleClient={visibleClient} setVisibleClient={setVisibleClient} saving={saving} message={message} onSubmit={guardarAvance} />
+      ) : (
+        <PrintableFicha repair={repair} />
+      )}
+    </div>
+  );
+}
+
+function Header({ repair, puedeActualizar, enviarWhatsApp }) {
+  return (
+    <div className="no-print flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/reparaciones" className="text-2xl text-[#64748B] hover:text-[#102033]">←</Link>
+          <h1 className="text-2xl font-black tracking-[-0.03em] text-[#102033]">Orden {repair.folio}</h1>
+          <StatusBadge status={repair.status} />
+        </div>
+        <p className="mt-1 text-sm font-semibold text-[#526174]">
+          Ingresado el {repair.dateIn} · Recibió: {repair.receivedBy || "Sin registrar"} · Técnico: {repair.tech}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Link href={`/admin/reparaciones/${repair.folio}?vista=actualizar`} className="rounded-xl border border-[#F0C391] bg-[#FFF1E3] px-4 py-2 text-sm font-black text-[#B45309]">{puedeActualizar ? "Actualizar avance" : "Comentario"}</Link>
+        <button type="button" onClick={enviarWhatsApp} className="rounded-xl border border-[#B9E8CD] bg-[#E8F8EF] px-4 py-2 text-sm font-black text-[#15803D]">WhatsApp</button>
+        <button onClick={() => window.print()} className="rounded-xl bg-[#00A8E8] px-4 py-2 text-sm font-black text-white">Imprimir orden</button>
+      </div>
+    </div>
+  );
+}
+
+function PrintableFicha({ repair }) {
+  const payment = repair.payment || {};
+  const advance = repair.advance || {};
+  const warranty = repair.warranty || {};
+  const photos = repair.photos || [];
+
+  return (
+    <section className="repair-print-area print-card rounded-2xl border border-[#C8D6E3] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
+      <div className="flex items-start justify-between border-b border-[#D9E6EF] pb-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF7A00]">Orden de servicio</p>
+          <h2 className="mt-1 text-3xl font-black text-[#102033]">{repair.folio}</h2>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-black text-[#102033]">CLICK.COM del Caribe</p>
+          <p className="text-xs font-semibold text-[#526174]">Servicio especializado en informática</p>
+        </div>
+      </div>
+
+      <div className="print-grid mt-5 grid gap-4 md:grid-cols-2">
+        <Info title="Cliente"><Row label="Nombre" value={repair.client} /><Row label="Teléfono" value={repair.phone} /><Row label="Correo" value={repair.email || "—"} /></Info>
+        <Info title="Equipo"><Row label="Tipo" value={repair.deviceType} /><Row label="Marca / modelo" value={`${repair.brand} ${repair.model}`.trim()} /><Row label="Número de serie" value={repair.serialNumber || "—"} /></Info>
+        <Info title="Recepción"><Row label="Recibió" value={repair.receivedBy || "Sin registrar"} /><Row label="Hora de entrada" value={repair.entryTime || "Sin registrar"} /><Row label="Técnico / encargado" value={repair.tech} /></Info>
+        <Info title="Fechas y estado"><Row label="Ingreso" value={repair.dateIn} /><Row label="Entrega estimada" value={repair.dateEstimated || "Sin definir"} /><Row label="Estado" value={repair.statusLabel || labelStatus(repair.status)} /></Info>
+        <Info title="Pago y anticipo"><Row label="Costo del servicio" value={`$${money(payment.costoServicio)}`} /><Row label="Anticipo" value={advance.dioAnticipo ? `$${money(advance.monto)}` : "No"} /><Row label="Forma de pago" value={advance.formaPago || "Por definir"} /><Row label="Saldo" value={`$${money(payment.saldoPendiente)}`} /><Row label="Factura" value={payment.factura ? "Sí" : "No"} /></Info>
+        <Info title="Garantía"><Row label="Aplica" value={warranty.aplica || "Por definir"} /><Row label="Días" value={warranty.dias || "—"} /><Row label="Nota" value={warranty.notas || "—"} /></Info>
+      </div>
+
+      <Info title="Falla reportada" wide><p className="text-sm font-semibold leading-6 text-[#102033]">{repair.problem}</p></Info>
+      <div className="print-grid grid gap-4 md:grid-cols-2">
+        <Info title="Observaciones de recepción"><p className="text-sm font-semibold leading-6 text-[#102033]">{repair.observations || "Sin observaciones registradas."}</p></Info>
+        <Info title="Accesorios recibidos"><p className="text-sm font-semibold leading-6 text-[#102033]">{repair.accessories?.length ? repair.accessories.join(", ") : "Ninguno registrado"}</p></Info>
+        <Info title="Estado físico"><p className="text-sm font-semibold leading-6 text-[#102033]">{repair.physicalConditions?.length ? repair.physicalConditions.join(", ") : "Sin marcas registradas"}</p></Info>
+        <Info title="Fotos / evidencia"><PhotoList photos={photos} /></Info>
+      </div>
+      <Info title="Historial técnico" wide><RepairTimeline events={repair.timeline || []} /></Info>
+    </section>
+  );
+}
+
+function LinkPanel({ seguimientoLink, message, copiarLink, enviarWhatsApp, enviarEmail, compact }) {
+  return (
+    <section className={`no-print rounded-2xl border border-[#C8D6E3] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] ${compact ? "" : "max-w-4xl"}`}>
+      <h3 className="text-xl font-black text-[#102033]">Enviar link privado</h3>
+      <p className="mt-1 text-sm font-semibold text-[#526174]">Este apartado solo sirve para compartir el acceso del cliente.</p>
+      <div className="mt-4 rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-4 text-sm font-bold text-[#0077B6] break-all">{seguimientoLink || "Sin link disponible"}</div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button onClick={copiarLink} className="rounded-xl border border-[#C8D6E3] bg-white px-4 py-2 text-sm font-black text-[#102033]">Copiar link</button>
+        <button onClick={enviarWhatsApp} className="rounded-xl bg-[#15803D] px-4 py-2 text-sm font-black text-white">WhatsApp</button>
+        <button onClick={enviarEmail} className="rounded-xl bg-[#00A8E8] px-4 py-2 text-sm font-black text-white">Gmail</button>
+      </div>
+      {message && <p className="mt-3 rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-sm font-bold text-[#334155]">{message}</p>}
+    </section>
+  );
+}
+
+function UpdatePanel(props) {
+  const {
+    repair,
+    puedeActualizar,
+    updateStatus,
+    setUpdateStatus,
+    updateTitle,
+    setUpdateTitle,
+    updateDescription,
+    setUpdateDescription,
+    visibleClient,
+    setVisibleClient,
+    saving,
+    message,
+    onSubmit,
+    compact,
+  } = props;
+
+  return (
+    <section
+      id="historial-tecnico"
+      className={`rounded-2xl border border-[#C8D6E3] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] ${compact ? "" : "max-w-4xl"}`}
+    >
+      <h3 className="text-xl font-black text-[#102033]">
+        {puedeActualizar ? "Actualizar avance" : "Comentario interno / garantía"}
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-[#526174]">
+        {puedeActualizar
+          ? "Actualiza el avance técnico sin abrir toda la ficha."
+          : "La orden está cerrada: solo se agrega comentario, no cambia estado ni datos principales."}
+      </p>
+
+      <form onSubmit={onSubmit} className="mt-5 rounded-2xl border border-[#D9E6EF] bg-[#F8FBFD] p-4">
+        <div className={`grid gap-3 ${puedeActualizar ? "lg:grid-cols-[220px_1fr]" : "lg:grid-cols-1"}`}>
+          {puedeActualizar && (
+            <div>
+              <label className="text-xs font-black uppercase tracking-[0.12em] text-[#526174]">Estado</label>
+              <select
+                value={updateStatus}
+                onChange={(e) => setUpdateStatus(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-[#C8D6E3] bg-white px-3 py-2 text-sm font-bold text-[#102033] outline-none focus:border-[#00A8E8]"
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-black uppercase tracking-[0.12em] text-[#526174]">
+              {puedeActualizar ? "Título del avance" : "Título del comentario"}
+            </label>
+            <input
+              value={updateTitle}
+              onChange={(e) => setUpdateTitle(e.target.value)}
+              placeholder={puedeActualizar ? "Ej: Diagnóstico realizado" : "Ej: Revisión por garantía"}
+              className="mt-2 w-full rounded-xl border border-[#C8D6E3] bg-white px-3 py-2 text-sm font-bold text-[#102033] outline-none focus:border-[#00A8E8]"
+            />
+          </div>
+        </div>
+
+        <textarea
+          value={updateDescription}
+          onChange={(e) => setUpdateDescription(e.target.value)}
+          rows={4}
+          placeholder={puedeActualizar
+            ? "Describe qué se revisó, qué se encontró o qué avance debe ver el cliente."
+            : "Escribe el comentario interno o de garantía. No cambiará el estado del folio."}
+          className="mt-3 w-full resize-none rounded-xl border border-[#C8D6E3] bg-white px-3 py-2 text-sm font-semibold text-[#102033] outline-none focus:border-[#00A8E8]"
+        />
+
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-sm font-bold text-[#334155]">
+            <input
+              type="checkbox"
+              checked={true}
+              readOnly
+            />
+            Visible para el cliente (obligatorio)
+          </label>
+          <button
+            disabled={saving}
+            className="rounded-xl bg-[#FF7A00] px-5 py-2 text-sm font-black text-white disabled:opacity-60"
+          >
+            {saving ? "Guardando..." : puedeActualizar ? "Guardar avance" : "Guardar comentario"}
+          </button>
+        </div>
+      </form>
+
+      {message && (
+        <p className="mt-3 rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-sm font-bold text-[#334155]">
+          {message}
+        </p>
+      )}
+      <div className="mt-5"><RepairTimeline events={repair.timeline || []} /></div>
+    </section>
+  );
+}
+
+function mapRepairFromApi(data, mensaje) {
+  const equipo = data.equipo || {};
+  const cliente = data.cliente || {};
+  const photos = [...(data.fotos || []), ...(data.fotosRecepcion || []), ...(equipo.fotosRecepcion || [])];
+  return {
+    folio: data.folio,
+    client: cliente.nombre || "Sin cliente",
+    phone: cliente.telefono || "Sin teléfono",
+    email: cliente.correo || "",
+    device: [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || "Equipo registrado",
+    deviceType: equipo.tipo || "Equipo",
+    brand: equipo.marca || "",
+    model: equipo.modelo || "",
+    serialNumber: equipo.serie || "",
+    status: data.estado || "recibido",
+    statusLabel: labelStatus(data.estado),
+    tech: data.tecnico || "Sin asignar",
+    receivedBy: data.recibidoPor || data.creadoPorNombre || "Sin registrar",
+    entryTime: data.horaEntrada || "Sin registrar",
+    problem: data.fallaReportada || "Sin falla registrada",
+    observations: data.observacionesRecepcion || data.observacionesCliente || "",
+    accessories: equipo.accesorios || data.accesorios || [],
+    physicalConditions: data.estadoFisico || equipo.estadoFisico || [],
+    photos,
+    payment: data.pago || {},
+    advance: data.anticipo || {},
+    warranty: data.garantia || {},
+    dateIn: formatDateOnly(data.fechaIngreso || data.creadoEn),
+    dateEstimated: formatDateOnly(data.fechaEntregaEstimada, "Sin definir"),
+    trackingUrl: mensaje?.link || "",
+    timeline: (data.historial || []).map((item) => ({ title: item.titulo || item.estado || "Actualización", date: formatDateTime(item.fecha), description: item.descripcion || "", tech: item.tecnico || data.tecnico || "Taller", color: item.estado === "entregado" ? "#22C55E" : item.estado === "en_reparacion" ? "#0066FF" : "#FF6B2C" })),
+  };
+}
+
+function Info({ title, children, wide }) {
+  return <div className={`print-tight mt-4 rounded-xl border border-[#D9E6EF] bg-white p-4 ${wide ? "md:col-span-2" : ""}`}><h3 className="mb-3 text-xs font-black uppercase tracking-[0.12em] text-[#526174]">{title}</h3>{children}</div>;
+}
+
+function Row({ label, value }) {
+  return <div className="flex justify-between gap-4 border-b border-[#EEF2F6] py-2 last:border-0"><span className="text-sm font-semibold text-[#526174]">{label}</span><span className="text-right text-sm font-black text-[#102033]">{value || "—"}</span></div>;
+}
+
+function photoSource(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return resolveAssetUrl(photo);
+  return resolveAssetUrl(photo.url || photo.preview || photo.dataUrl || photo.src || "");
+}
+
+function PhotoList({ photos }) {
+  if (!photos || photos.length === 0) return <p className="text-sm font-semibold text-[#526174]">Sin fotos registradas.</p>;
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {photos.map((photo, index) => {
+        const src = photoSource(photo);
+        return (
+          <div key={`${photo?.nombre || photo?.name || src || index}`} className="rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-xs font-bold text-[#526174]">
+            {src ? <img src={src} alt={photo?.nombre || photo?.name || `Foto ${index + 1}`} className="mb-2 h-28 w-full rounded-lg object-cover" /> : <div className="mb-2 flex h-28 items-center justify-center rounded-lg border border-dashed border-[#C8D6E3] bg-white text-center text-[11px] text-[#526174]">Foto sin archivo guardado</div>}
+            <span className="block truncate">{photo?.nombre || photo?.name || `Foto ${index + 1}`}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

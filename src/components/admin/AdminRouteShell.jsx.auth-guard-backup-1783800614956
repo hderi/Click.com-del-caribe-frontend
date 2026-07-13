@@ -1,0 +1,73 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import AdminLayout from "@/components/admin/AdminLayout";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+export default function AdminRouteShell({ children }) {
+  const pathname = usePathname();
+  const [checked, setChecked] = useState(false);
+  const isLogin = pathname === "/admin/login";
+  const isProfile = pathname === "/admin/perfil";
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function verifySession() {
+      if (isLogin) {
+        setChecked(true);
+        return;
+      }
+
+      const token = localStorage.getItem("clickcom_token");
+      if (!token) {
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.usuario) {
+          localStorage.removeItem("clickcom_token");
+          localStorage.removeItem("clickcom_user");
+          window.location.href = "/admin/login";
+          return;
+        }
+
+        localStorage.setItem("clickcom_user", JSON.stringify(data.usuario));
+
+        if (data.usuario.debeCambiarPassword && !isProfile) {
+          window.location.href = "/admin/perfil?cambiar=1";
+          return;
+        }
+
+        if (!ignore) setChecked(true);
+      } catch {
+        if (!ignore) setChecked(true);
+      }
+    }
+
+    verifySession();
+    return () => {
+      ignore = true;
+    };
+  }, [isLogin, isProfile]);
+
+  if (isLogin) return <>{children}</>;
+
+  if (!checked) {
+    return (
+      <div className="min-h-screen bg-[#EEF4F8] flex items-center justify-center text-[#102033] font-semibold">
+        Verificando acceso...
+      </div>
+    );
+  }
+
+  return <AdminLayout>{children}</AdminLayout>;
+}

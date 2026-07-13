@@ -1,0 +1,14 @@
+import AdminRouteShell from "@/components/admin/AdminRouteShell";
+
+export const metadata = {
+  title: "Panel Administrativo — CLICK.COM Caribe",
+  description: "Panel administrativo para gestionar reparaciones, clientes y equipos.",
+};
+
+export default function AdminLayoutRoot({ children }) {
+  return (
+    <div className="min-h-screen bg-[#EEF4F8] text-[#102033] ">
+      <AdminRouteShell>{children}</AdminRouteShell>
+    </div>
+  );
+}

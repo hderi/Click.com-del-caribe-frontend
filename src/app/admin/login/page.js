@@ -1,0 +1,55 @@
+﻿"use client";
+
+import { useState } from "react";
+import LoginCard from "@/components/admin/LoginCard";
+import LoginBackground from "@/components/admin/LoginBackground";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+export default function AdminLoginPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async ({ usuario, password }) => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesión");
+
+      localStorage.setItem("clickcom_token", data.token);
+      localStorage.setItem("clickcom_user", JSON.stringify(data.usuario));
+      window.location.href = "/admin/dashboard";
+    } catch (err) {
+      setError(err.message || "Usuario o contraseña incorrectos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <main
+      style={{
+        position: "relative",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "32px 16px",
+        overflow: "hidden",
+        fontFamily: "Aptos, Segoe UI, Arial, sans-serif",
+      }}
+    >
+      <LoginBackground />
+      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: 540 }}>
+        <LoginCard onSubmit={handleLogin} isLoading={isLoading} error={error} />
+      </div>
+    </main>
+  );
+}

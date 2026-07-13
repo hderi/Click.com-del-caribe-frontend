@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+
+export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
+  const [usuario, setUsuario] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  function submit(event) {
+    event.preventDefault();
+    onSubmit({ usuario: usuario.trim(), password });
+  }
+
+  return (
+    <section className="relative mx-auto w-full max-w-[520px] overflow-hidden rounded-[34px] border border-white/80 bg-white/78 px-7 py-8 shadow-[0_32px_90px_rgba(21,86,130,0.22)] backdrop-blur-xl sm:px-12 sm:py-10">
+      <div className="absolute left-0 right-0 top-0 h-[4px] bg-gradient-to-r from-[#00A8E8] via-[#F7B733] to-[#FF7A00]" />
+      <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-[#DFF5FF]" />
+      <div className="absolute -bottom-20 -left-16 h-36 w-36 rounded-full bg-[#FFF0DC]" />
+
+      <div className="relative text-center">
+        <div className="mx-auto flex h-28 w-40 items-center justify-center rounded-3xl border border-[#D4E7F3] bg-white/80 shadow-[0_18px_50px_rgba(0,168,232,0.12)]">
+          <img src="/logo-clickcom.png" alt="CLICK.COM del Caribe" className="max-h-24 max-w-36 object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          <span className="hidden text-xl font-black text-[#102033]">CLICK.COM</span>
+        </div>
+        <p className="mt-6 text-sm font-black uppercase tracking-[0.32em] text-[#0066D6]">Acceso interno</p>
+        <h1 className="mt-3 text-3xl font-black tracking-[-0.03em] text-[#102033] sm:text-4xl">Panel administrativo</h1>
+        <p className="mx-auto mt-3 max-w-sm text-base font-semibold leading-7 text-[#6B7A90]">
+          Ingresa para gestionar reparaciones, clientes y seguimiento técnico.
+        </p>
+        <div className="mx-auto mt-7 h-[3px] w-24 rounded-full bg-gradient-to-r from-[#0066FF] via-[#00A8E8] to-[#FF7A00]" />
+      </div>
+
+      <form onSubmit={submit} className="relative mt-8 space-y-5">
+        <Field
+          label="Usuario"
+          value={usuario}
+          onChange={(event) => setUsuario(event.target.value)}
+          placeholder="Ej. admin"
+          icon="user"
+          autoComplete="username"
+        />
+
+        <div>
+          <label className="mb-2 block text-sm font-black text-[#334155]">Contraseña</label>
+          <div className="flex items-center rounded-2xl border border-[#C8DCEC] bg-white/78 px-4 shadow-inner focus-within:border-[#00A8E8] focus-within:ring-4 focus-within:ring-[#00A8E8]/15">
+            <Icon type="lock" />
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Tu contraseña"
+              autoComplete="current-password"
+              className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-bold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
+              required
+            />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl border border-[#C8DCEC] bg-white px-3 py-2 text-sm font-black text-[#0066D6]">
+              {showPassword ? "Ocultar" : "Ver"}
+            </button>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="rounded-2xl border border-[#FFC0C0] bg-[#FFF0F0] px-4 py-3 text-sm font-black text-[#B91C1C]">
+            {error}
+          </div>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#0057E7] to-[#00A8E8] px-6 py-4 text-lg font-black text-white shadow-[0_18px_42px_rgba(0,102,255,0.28)] transition hover:translate-y-[-1px] hover:from-[#004FE0] hover:to-[#008FE0] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isLoading ? "Iniciando..." : "Iniciar sesión"}
+          <span aria-hidden="true" className="text-2xl transition group-hover:translate-x-1">→</span>
+        </button>
+      </form>
+
+      <div className="relative mt-8 text-center">
+        <p className="text-sm font-bold text-[#6B7A90]">Acceso restringido. Solo personal autorizado.</p>
+        <p className="mt-2 text-sm font-black text-[#8CA0B5]">CLICK.COM del Caribe — Servicio especializado en informática</p>
+      </div>
+    </section>
+  );
+}
+
+function Field({ label, icon, ...props }) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-black text-[#334155]">{label}</label>
+      <div className="flex items-center rounded-2xl border border-[#C8DCEC] bg-white/78 px-4 shadow-inner focus-within:border-[#00A8E8] focus-within:ring-4 focus-within:ring-[#00A8E8]/15">
+        <Icon type={icon} />
+        <input
+          {...props}
+          className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-bold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
+          required
+        />
+      </div>
+    </div>
+  );
+}
+
+function Icon({ type }) {
+  const path = type === "lock"
+    ? "M16.5 10.5V7.5a4.5 4.5 0 10-9 0v3m-.75 0h10.5A1.75 1.75 0 0118 12.25v6A1.75 1.75 0 0116.25 20H7.75A1.75 1.75 0 016 18.25v-6a1.75 1.75 0 011.75-1.75z"
+    : "M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0";
+  return (
+    <svg className="h-5 w-5 shrink-0 text-[#7FA5BF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+    </svg>
+  );
+}

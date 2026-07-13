@@ -1,0 +1,129 @@
+﻿"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { dedupePhotos, formatDateOnly, formatDateTime, resolveAssetUrl } from "@/lib/adminFormat";
+import { useSearchParams } from "next/navigation";
+import StatusBadge from "@/components/admin/StatusBadge";
+import RepairTimeline from "@/components/admin/RepairTimeline";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function getAuthHeaders(extra = {}) {
+  if (typeof window === "undefined") return extra;
+  const token = localStorage.getItem("clickcom_token") || "";
+  return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+const STATUS_OPTIONS = [
+  { value: "recibido", label: "Recibido" },
+  { value: "diagnostico", label: "Diagnóstico" },
+  { value: "en_reparacion", label: "En reparación" },
+  { value: "esperando_refaccion", label: "Esperando refacción" },
+  { value: "finalizado", label: "Finalizado" },
+  { value: "entregado", label: "Entregado" },
+];
+
+function labelStatus(value) {
+  return STATUS_OPTIONS.find((item) => item.value === value)?.label || value || "Recibido";
+}
+
+function money(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export default function RepairDetail({ repair: initialRepair }) {
+  const searchParams = useSearchParams();
+  const vista = searchParams.get("vista") || "ficha";
+  const [repair, setRepair] = useState(initialRepair);
+  const [updateStatus, setUpdateStatus] = useState(initialRepair?.status || "recibido");
+  const [updateTitle, setUpdateTitle] = useState("");
+  const [updateDescription, setUpdateDescription] = useState("");
+  const [visibleClient, setVisibleClient] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  if (!repair) {
+    return (
+      <div className="rounded-2xl border border-[#C8D6E3] bg-white p-8 text-center">
+        <h2 className="text-lg font-black text-[#102033]">Reparación no encontrada</h2>
+        
+        
+        </div>
+      </form>
+
+      {message && (
+        <p className="mt-3 rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-sm font-bold text-[#334155]">
+          {message}
+        </p>
+      )}
+      <div className="mt-5"><RepairTimeline events={repair.timeline || []} /></div>
+    </section>
+  );
+}
+
+function mapRepairFromApi(data, mensaje) {
+  const equipo = data.equipo || {};
+  const cliente = data.cliente || {};
+  const photos = [...(data.fotos || []), ...(data.fotosRecepcion || []), ...(equipo.fotosRecepcion || [])];
+  return {
+    folio: data.folio,
+    client: cliente.nombre || "Sin cliente",
+    phone: cliente.telefono || "Sin teléfono",
+    email: cliente.correo || "",
+    device: [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || "Equipo registrado",
+    deviceType: equipo.tipo || "Equipo",
+    brand: equipo.marca || "",
+    model: equipo.modelo || "",
+    serialNumber: equipo.serie || "",
+    status: data.estado || "recibido",
+    statusLabel: labelStatus(data.estado),
+    tech: data.tecnico || "Sin asignar",
+    receivedBy: data.recibidoPor || data.creadoPorNombre || "Sin registrar",
+    entryTime: data.horaEntrada || "Sin registrar",
+    problem: data.fallaReportada || "Sin falla registrada",
+    observations: data.observacionesRecepcion || data.observacionesCliente || "",
+    accessories: equipo.accesorios || data.accesorios || [],
+    physicalConditions: data.estadoFisico || equipo.estadoFisico || [],
+    photos,
+    payment: data.pago || {},
+    advance: data.anticipo || {},
+    warranty: data.garantia || {},
+    dateIn: formatDateOnly(data.fechaIngreso || data.creadoEn),
+    dateEstimated: formatDateOnly(data.fechaEntregaEstimada, "Sin definir"),
+    trackingUrl: mensaje?.link || "",
+    timeline: (data.historial || []).map((item) => ({ title: item.titulo || item.estado || "Actualización", date: formatDateTime(item.fecha), description: item.descripcion || "", tech: item.tecnico || data.tecnico || "Taller", color: item.estado === "entregado" ? "#22C55E" : item.estado === "en_reparacion" ? "#0066FF" : "#FF6B2C" })),
+  };
+}
+
+function Info({ title, children, wide }) {
+  return <div className={`print-tight mt-4 rounded-xl border border-[#D9E6EF] bg-white p-4 ${wide ? "md:col-span-2" : ""}`}><h3 className="mb-3 text-xs font-black uppercase tracking-[0.12em] text-[#526174]">{title}</h3>{children}</div>;
+}
+
+function Row({ label, value }) {
+  return <div className="flex justify-between gap-4 border-b border-[#EEF2F6] py-2 last:border-0"><span className="text-sm font-semibold text-[#526174]">{label}</span><span className="text-right text-sm font-black text-[#102033]">{value || "—"}</span></div>;
+}
+
+function photoSource(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return resolveAssetUrl(photo);
+  return resolveAssetUrl(photo.url || photo.preview || photo.dataUrl || photo.src || "");
+}
+
+function PhotoList({ photos }) {
+  if (!photos || photos.length === 0) return <p className="text-sm font-semibold text-[#526174]">Sin fotos registradas.</p>;
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {photos.map((photo, index) => {
+        const src = photoSource(photo);
+        return (
+          <div key={`${photo?.nombre || photo?.name || src || index}`} className="rounded-xl border border-[#D9E6EF] bg-[#F8FBFD] p-3 text-xs font-bold text-[#526174]">
+            {src ? <img src={src} alt={photo?.nombre || photo?.name || `Foto ${index + 1}`} className="mb-2 h-28 w-full rounded-lg object-cover" /> : <div className="mb-2 flex h-28 items-center justify-center rounded-lg border border-dashed border-[#C8D6E3] bg-white text-center text-[11px] text-[#526174]">Foto sin archivo guardado</div>}
+            <span className="block truncate">{photo?.nombre || photo?.name || `Foto ${index + 1}`}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
