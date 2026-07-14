@@ -1,5 +1,4 @@
 ﻿"use client";
-import { useRouter } from "next/navigation";
 
 import { setSession } from "@/lib/authStorage";
 import { useState } from "react";
@@ -46,7 +45,7 @@ const [isLoading, setIsLoading] = useState(false);
         justifyContent: "center",
         padding: "32px 16px",
         overflow: "hidden",
-        fontFamily: "Inter, Segoe UI, Arial, sans-serif",
+        fontFamily: "Aptos, Segoe UI, Arial, sans-serif",
       }}
     >
       <LoginBackground />

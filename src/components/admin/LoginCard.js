@@ -13,29 +13,32 @@ export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-[520px] overflow-hidden rounded-[34px] border border-white/80 bg-white/76 px-7 py-8 shadow-[0_32px_90px_rgba(21,86,130,0.22)] backdrop-blur-xl sm:px-12 sm:py-10">
-      <div className="absolute left-0 right-0 top-0 h-[4px] bg-gradient-to-r from-[#0066FF] via-[#00A8E8] to-[#FF7A00]" />
-      <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-[#DFF5FF]" />
-      <div className="absolute -bottom-20 -left-16 h-36 w-36 rounded-full bg-[#FFF0DC]" />
+    <section className="relative mx-auto w-full max-w-[520px] overflow-hidden rounded-[28px] border border-[#C9D8E6] bg-white px-8 py-9 shadow-[0_22px_70px_rgba(30,64,95,0.14)] sm:px-12">
+      <div className="absolute left-0 right-0 top-0 h-[3px] bg-[#0B79D0]" />
+      <div className="absolute -right-14 -top-14 h-32 w-32 rounded-full bg-[#E4F5FC]" />
+      <div className="absolute -bottom-16 -left-14 h-32 w-32 rounded-full bg-[#FFF0DC]" />
 
       <div className="relative text-center">
-        <div className="mx-auto flex h-28 w-40 items-center justify-center rounded-3xl border border-[#D4E7F3] bg-white/80 shadow-[0_18px_50px_rgba(0,168,232,0.12)]">
+        <div className="mx-auto flex h-28 w-40 items-center justify-center rounded-2xl border border-[#D4E7F3] bg-white">
           <img src="/logo-clickcom.png.jpeg" alt="CLICK.COM del Caribe" className="max-h-24 max-w-36 object-contain" />
         </div>
-        <p className="mt-6 text-sm font-black uppercase tracking-[0.32em] text-[#0066D6]">Acceso interno</p>
-        <h1 className="mt-3 text-3xl font-black tracking-[-0.03em] text-[#102033] sm:text-4xl">Panel administrativo</h1>
-        <p className="mx-auto mt-3 max-w-sm text-base font-semibold leading-7 text-[#6B7A90]">
-          Ingresa para gestionar reparaciones, clientes y seguimiento técnico.
-        </p>
-        <div className="mx-auto mt-7 h-[3px] w-24 rounded-full bg-gradient-to-r from-[#0066FF] via-[#00A8E8] to-[#FF7A00]" />
+        <p className="mt-6 text-sm font-bold uppercase tracking-[0.28em] text-[#0B79D0]">Acceso interno</p>
+        <h1 className="mt-3 text-3xl font-black tracking-[-0.03em] text-[#102033]">Panel administrativo</h1>
       </div>
 
-      <form onSubmit={submit} className="relative mt-8 space-y-5">
-        <Field label="Usuario" value={usuario} onChange={(event) => setUsuario(event.target.value)} placeholder="Ej. admin" icon="user" autoComplete="username" />
+      <form onSubmit={submit} className="relative mt-9 space-y-5">
+        <Field
+          label="Usuario"
+          value={usuario}
+          onChange={(event) => setUsuario(event.target.value)}
+          placeholder="Ej. admin"
+          icon="user"
+          autoComplete="username"
+        />
 
         <div>
-          <label className="mb-2 block text-sm font-black text-[#334155]">Contraseña</label>
-          <div className="flex items-center rounded-2xl border border-[#C8DCEC] bg-white/78 px-4 shadow-inner focus-within:border-[#00A8E8] focus-within:ring-4 focus-within:ring-[#00A8E8]/15">
+          <label className="mb-2 block text-sm font-bold text-[#334155]">Contraseña</label>
+          <div className="flex items-center rounded-xl border border-[#C8DCEC] bg-[#F8FBFD] px-4 focus-within:border-[#0B79D0] focus-within:ring-3 focus-within:ring-[#0B79D0]/15">
             <Icon type="lock" />
             <input
               type={showPassword ? "text" : "password"}
@@ -43,30 +46,39 @@ export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Tu contraseña"
               autoComplete="current-password"
-              className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-bold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
+              className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-semibold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
               required
             />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl border border-[#C8DCEC] bg-white px-3 py-2 text-sm font-black text-[#0066D6]">
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="rounded-lg border border-[#BCD3E5] bg-white px-3 py-2 text-sm font-bold text-[#0B79D0] hover:bg-[#EFF7FC]"
+            >
               {showPassword ? "Ocultar" : "Ver"}
             </button>
           </div>
         </div>
 
-        {error ? <div className="rounded-2xl border border-[#FFC0C0] bg-[#FFF0F0] px-4 py-3 text-sm font-black text-[#B91C1C]">{error}</div> : null}
+        {error ? (
+          <div className="rounded-xl border border-[#FFC0C0] bg-[#FFF0F0] px-4 py-3 text-sm font-bold text-[#B91C1C]">
+            {error}
+          </div>
+        ) : null}
 
         <button
           type="submit"
           disabled={isLoading}
-          className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#0057E7] to-[#00A8E8] px-6 py-4 text-lg font-black text-white shadow-[0_18px_42px_rgba(0,102,255,0.28)] transition hover:translate-y-[-1px] hover:from-[#004FE0] hover:to-[#008FE0] disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex w-full items-center justify-center rounded-xl bg-[#0B79D0] px-6 py-4 text-lg font-black text-white transition hover:bg-[#075FA7] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isLoading ? "Iniciando..." : "Iniciar sesión"}
-          <span aria-hidden="true" className="text-2xl transition group-hover:translate-x-1">→</span>
+          {isLoading ? "Entrando..." : "Entrar"}
         </button>
       </form>
 
       <div className="relative mt-8 text-center">
-        <p className="text-sm font-bold text-[#6B7A90]">Acceso restringido. Solo personal autorizado.</p>
-        <p className="mt-2 text-sm font-black text-[#8CA0B5]">CLICK.COM del Caribe — Servicio especializado en informática</p>
+        <p className="text-sm font-semibold text-[#6B7A90]">Acceso restringido. Solo personal autorizado.</p>
+        <p className="mt-2 text-sm font-bold text-[#8CA0B5]">
+          CLICK.COM del Caribe - Servicio especializado en informática
+        </p>
       </div>
     </section>
   );
@@ -75,19 +87,24 @@ export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
 function Field({ label, icon, ...props }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-black text-[#334155]">{label}</label>
-      <div className="flex items-center rounded-2xl border border-[#C8DCEC] bg-white/78 px-4 shadow-inner focus-within:border-[#00A8E8] focus-within:ring-4 focus-within:ring-[#00A8E8]/15">
+      <label className="mb-2 block text-sm font-bold text-[#334155]">{label}</label>
+      <div className="flex items-center rounded-xl border border-[#C8DCEC] bg-[#F8FBFD] px-4 focus-within:border-[#0B79D0] focus-within:ring-3 focus-within:ring-[#0B79D0]/15">
         <Icon type={icon} />
-        <input {...props} className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-bold text-[#102033] outline-none placeholder:text-[#9AA8BA]" required />
+        <input
+          {...props}
+          className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-semibold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
+          required
+        />
       </div>
     </div>
   );
 }
 
 function Icon({ type }) {
-  const path = type === "lock"
-    ? "M16.5 10.5V7.5a4.5 4.5 0 10-9 0v3m-.75 0h10.5A1.75 1.75 0 0118 12.25v6A1.75 1.75 0 0116.25 20H7.75A1.75 1.75 0 016 18.25v-6a1.75 1.75 0 011.75-1.75z"
-    : "M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0";
+  const path =
+    type === "lock"
+      ? "M16.5 10.5V7.5a4.5 4.5 0 10-9 0v3m-.75 0h10.5A1.75 1.75 0 0118 12.25v6A1.75 1.75 0 0116.25 20H7.75A1.75 1.75 0 016 18.25v-6a1.75 1.75 0 011.75-1.75z"
+      : "M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0";
   return (
     <svg className="h-5 w-5 shrink-0 text-[#7FA5BF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d={path} />
