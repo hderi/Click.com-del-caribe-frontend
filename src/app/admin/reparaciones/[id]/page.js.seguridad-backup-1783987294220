@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { getToken } from "@/lib/authStorage";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import RepairDetail from "@/components/admin/RepairDetail";
@@ -81,7 +80,7 @@ export default function RepairDetailPage({ params }) {
   useEffect(() => {
     async function loadRepair() {
       try {
-        const token = getToken();
+        const token = localStorage.getItem("clickcom_token");
         const response = await fetch(`${API_URL}/api/reparaciones/${params.id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });

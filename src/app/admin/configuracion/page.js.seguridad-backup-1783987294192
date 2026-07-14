@@ -1,5 +1,4 @@
 "use client";
-import { getToken, getSessionUser } from "@/lib/authStorage";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -13,7 +12,7 @@ const ROLES = [
 ];
 
 function authHeaders() {
-  const token = typeof window !== "undefined" ? getToken() : "";
+  const token = typeof window !== "undefined" ? localStorage.getItem("clickcom_token") : "";
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token || ""}`,
@@ -54,7 +53,7 @@ export default function ConfiguracionPage() {
   const actualUser = useMemo(() => {
     if (typeof window === "undefined") return null;
     try {
-      return getSessionUser();
+      return JSON.parse(localStorage.getItem("clickcom_user") || "null");
     } catch {
       return null;
     }

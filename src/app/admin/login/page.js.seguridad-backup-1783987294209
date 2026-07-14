@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { setSession } from "@/lib/authStorage";
 import { useState } from "react";
 import LoginCard from "@/components/admin/LoginCard";
 import LoginBackground from "@/components/admin/LoginBackground";
@@ -26,7 +25,8 @@ const [isLoading, setIsLoading] = useState(false);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesión");
 
-      setSession(data.token, data.usuario);
+      localStorage.setItem("clickcom_token", data.token);
+      localStorage.setItem("clickcom_user", JSON.stringify(data.usuario));
       router.push("/admin/dashboard");
     } catch (err) {
       setError(err.message || "Usuario o contraseña incorrectos");

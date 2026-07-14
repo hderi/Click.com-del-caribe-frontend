@@ -1,5 +1,4 @@
 "use client";
-import { getToken, clearSession } from "@/lib/authStorage";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -24,7 +23,7 @@ export default function AdminRouteShell({ children }) {
       }
 
       setChecked(false);
-      const token = getToken();
+      const token = localStorage.getItem("clickcom_token");
       if (!token) {
         router.replace("/admin/login");
         return;
@@ -37,7 +36,8 @@ export default function AdminRouteShell({ children }) {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok || !data.usuario) {
-          clearSession();
+          localStorage.removeItem("clickcom_token");
+          localStorage.removeItem("clickcom_user");
           router.replace("/admin/login");
           return;
         }
@@ -51,7 +51,8 @@ export default function AdminRouteShell({ children }) {
 
         if (!ignore) setChecked(true);
       } catch {
-        clearSession();
+        localStorage.removeItem("clickcom_token");
+        localStorage.removeItem("clickcom_user");
         router.replace("/admin/login");
       }
     }

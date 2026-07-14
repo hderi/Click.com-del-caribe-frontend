@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { setSession } from "@/lib/authStorage";
 import { useState } from "react";
 import LoginCard from "@/components/admin/LoginCard";
 import LoginBackground from "@/components/admin/LoginBackground";
@@ -8,9 +7,7 @@ import LoginBackground from "@/components/admin/LoginBackground";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function AdminLoginPage() {
-  
-  const router = useRouter();
-const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async ({ usuario, password }) => {
@@ -26,8 +23,9 @@ const [isLoading, setIsLoading] = useState(false);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesión");
 
-      setSession(data.token, data.usuario);
-      router.push("/admin/dashboard");
+      localStorage.setItem("clickcom_token", data.token);
+      localStorage.setItem("clickcom_user", JSON.stringify(data.usuario));
+      window.location.href = "/admin/dashboard";
     } catch (err) {
       setError(err.message || "Usuario o contraseña incorrectos");
     } finally {

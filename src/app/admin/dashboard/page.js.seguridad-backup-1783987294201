@@ -1,5 +1,4 @@
 "use client";
-import { getToken } from "@/lib/authStorage";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -85,7 +84,7 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         setError("");
-        const token = getToken() || "";
+        const token = localStorage.getItem("clickcom_token") || "";
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const [r1, r2, r3] = await Promise.all([
           fetch(`${API_URL}/api/reparaciones`, { headers }),

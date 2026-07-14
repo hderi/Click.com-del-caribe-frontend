@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { getToken } from "@/lib/authStorage";
 import { useEffect, useMemo, useState } from "react";
 import ClientsHeader from "@/components/admin/ClientsHeader";
 import ClientsTable from "@/components/admin/ClientsTable";
@@ -96,7 +95,7 @@ export default function ClientesPage() {
     try {
       setLoading(true);
       setError("");
-      const token = typeof window !== "undefined" ? getToken() : "";
+      const token = typeof window !== "undefined" ? localStorage.getItem("clickcom_token") : "";
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [clientsResponse, repairsResponse, equipmentResponse] = await Promise.all([
         fetch(`${API_URL}/api/clientes`, { headers }),
@@ -169,7 +168,7 @@ export default function ClientesPage() {
     try {
       setSaving(true);
       setError("");
-      const token = typeof window !== "undefined" ? getToken() : "";
+      const token = typeof window !== "undefined" ? localStorage.getItem("clickcom_token") : "";
       const response = await fetch(`${API_URL}/api/clientes`, {
         method: "POST",
         headers: {

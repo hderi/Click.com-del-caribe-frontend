@@ -1,5 +1,4 @@
 "use client";
-import { getToken } from "@/lib/authStorage";
 
 
 function asText(value) {
@@ -22,7 +21,7 @@ function labelOf(value) {
 }
 function token() {
   if (typeof window === "undefined") return "";
-  return getToken() || localStorage.getItem("token") || "";
+  return localStorage.getItem("clickcom_token") || localStorage.getItem("token") || "";
 }
 
 function headers() {

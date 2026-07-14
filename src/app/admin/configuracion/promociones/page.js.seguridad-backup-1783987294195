@@ -1,11 +1,10 @@
 "use client";
-import { getToken } from "@/lib/authStorage";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 function headers() {
-  const token = typeof window !== "undefined" ? getToken() : "";
+  const token = typeof window !== "undefined" ? localStorage.getItem("clickcom_token") : "";
   return { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` };
 }
 

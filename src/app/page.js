@@ -1,9 +1,9 @@
-﻿import PublicWindowApp from "@/components/PublicWindowApp";
+import PublicWindowApp from "@/components/PublicWindowApp";
 
 export const metadata = {
-  title: "CLICK.COM Caribe | Reparacion y soporte tecnologico",
+  title: "CLICK.COM del Caribe | Soluciones tecnologicas",
   description:
-    "Servicio profesional de reparacion, soporte tecnico y seguimiento de equipos en el Caribe Mexicano.",
+    "Servicio especializado en informatica, reparacion, soporte tecnico, redes, camaras, equipos y promociones.",
 };
 
 export default function Home() {

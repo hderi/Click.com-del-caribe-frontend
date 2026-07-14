@@ -18,8 +18,9 @@ export default function Topbar({ onMenuToggle }) {
   const displayRole = currentUser?.rol || "admin";
   const initial = displayName.charAt(0).toUpperCase();
   const logout = () => {
-    clearSession();
-    logoutToLogin();
+    localStorage.removeItem("clickcom_token");
+    localStorage.removeItem("clickcom_user");
+    window.location.href = "/admin/login";
   };
 
   /* -- Close dropdowns on outside click -- */

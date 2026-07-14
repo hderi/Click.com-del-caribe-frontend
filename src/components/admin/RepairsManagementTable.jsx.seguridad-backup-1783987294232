@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { getToken } from "@/lib/authStorage";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -50,7 +49,7 @@ function WhatsAppIcon() {
 
 async function openWhatsApp(folio) {
   try {
-    const token = getToken();
+    const token = localStorage.getItem("clickcom_token");
     const response = await fetch(`${API_URL}/api/reparaciones/${folio}/whatsapp`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},

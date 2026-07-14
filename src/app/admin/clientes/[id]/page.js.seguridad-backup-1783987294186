@@ -1,5 +1,4 @@
 "use client";
-import { getToken } from "@/lib/authStorage";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -31,7 +30,7 @@ export default function ClienteDetallePage({ params }) {
     let ignore = false;
     async function loadData() {
       try {
-        const token = getToken();
+        const token = localStorage.getItem("clickcom_token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const [clientsResponse, repairsResponse] = await Promise.all([
           fetch(`${API_URL}/api/clientes`, { headers }),
@@ -77,7 +76,7 @@ export default function ClienteDetallePage({ params }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const token = getToken();
+      const token = localStorage.getItem("clickcom_token");
       const headers = { "Content-Type": "application/json" };
       if (token) headers.Authorization = `Bearer ${token}`;
       

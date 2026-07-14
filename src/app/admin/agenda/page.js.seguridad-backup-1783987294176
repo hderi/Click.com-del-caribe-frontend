@@ -1,5 +1,4 @@
 "use client";
-import { getToken } from "@/lib/authStorage";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -8,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const estadosListos = ["finalizado"];
 
 function authHeaders() {
-  const token = typeof window !== "undefined" ? getToken() : "";
+  const token = typeof window !== "undefined" ? localStorage.getItem("clickcom_token") : "";
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

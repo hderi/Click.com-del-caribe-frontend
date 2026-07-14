@@ -109,10 +109,8 @@ export default function HeroSection() {
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFA21A]">
                   Acceso por enlace
                 </p>
-                <p className="mt-3 text-sm font-bold leading-7 text-white/72">
-                  La informacion real del cliente se abrira desde un link directo,
-                  por ejemplo: /seguimiento/RX-101. Asi la pagina publica no expone
-                  reparaciones reales.
+                <p c="">
+                
                 </p>
                 <a
                   href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}

@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { getToken } from "@/lib/authStorage";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import FormSection from "@/components/admin/FormSection";
@@ -338,8 +337,8 @@ export default function NewRepairForm() {
   };
 
   const handleSubmit = async (event) => {
-    const costoServicio = Number(form?.costoServicio || 0);
-    const anticipo = Number(form?.anticipo || 0);
+    const costoServicio = Number(formData?.costoServicio || form?.costoServicio || 0);
+    const anticipo = Number(formData?.anticipo || form?.anticipo || 0);
     if (anticipo > costoServicio && costoServicio > 0) {
       setError?.("El anticipo no puede ser mayor al costo del servicio.");
       alert("El anticipo no puede ser mayor al costo del servicio.");
@@ -353,19 +352,19 @@ export default function NewRepairForm() {
     const payload = {
       canalContacto: form.contactChannel,
       cliente: {
-        nombre: sanitizeText(form.clientName, 120),
-        telefono: sanitizePhone(form.clientPhone),
-        correo: sanitizeEmail(form.clientEmail),
+        nombre: form.clientName.trim(),
+        telefono: form.clientPhone.trim(),
+        correo: form.clientEmail.trim(),
       },
       equipo: {
         tipo: deviceLabel,
-        marca: sanitizeText(form.brand, 80),
-        modelo: sanitizeText(form.model, 100),
-        serie: sanitizeText(form.serialNumber, 80),
+        marca: form.brand.trim(),
+        modelo: form.model.trim(),
+        serie: form.serialNumber.trim(),
         passwordEquipo: form.devicePassword.trim(),
         notas: form.observations.trim(),
       },
-      fallaReportada: sanitizeMultiline(form.problem, 1800),
+      fallaReportada: form.problem.trim(),
       tecnico: form.tech.trim(),
       recibidoPor: form.receivedBy.trim(),
       horaEntrada: form.entryTime,
@@ -403,7 +402,7 @@ export default function NewRepairForm() {
     try {
       const response = await fetch(`${API_URL}/api/reparaciones`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+        headers: { "Content-Type": "application/json", ...(localStorage.getItem("clickcom_token") ? { Authorization: `Bearer ${localStorage.getItem("clickcom_token")}` } : {}) },
         body: JSON.stringify(payload),
       });
       const data = await response.json();

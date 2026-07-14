@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { getToken, getSessionUser } from "@/lib/authStorage";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -12,11 +11,11 @@ export default function PerfilPage() {
   const [usuario, setUsuario] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [form, setForm] = useState({ nombre: "", usuario: "", passwordActual: "", passwordNueva: "" });
-  const token = useMemo(() => (typeof window !== "undefined" ? getToken() : ""), []);
+  const token = useMemo(() => (typeof window !== "undefined" ? localStorage.getItem("clickcom_token") : ""), []);
 
   useEffect(() => {
     try {
-      const stored = getSessionUser();
+      const stored = JSON.parse(localStorage.getItem("clickcom_user") || "null");
       const user = stored || { nombre: "Administrador", usuario: "admin", rol: "admin" };
       setUsuario(user);
       setForm((prev) => ({ ...prev, nombre: user.nombre || "", usuario: user.usuario || "" }));
