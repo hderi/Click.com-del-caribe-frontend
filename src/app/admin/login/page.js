@@ -44,16 +44,16 @@ export default function AdminLoginPage() {
         position: "relative",
         minHeight: "100dvh",
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         justifyContent: "center",
-        padding: "16px 16px 96px",
+        padding: "24px 16px",
         overflowX: "hidden",
         overflowY: "auto",
         fontFamily: "Inter, Segoe UI, Arial, sans-serif",
       }}
     >
       <LoginBackground />
-      <div className="relative z-10 mx-auto w-full max-w-[540px] lg:ml-auto lg:mr-[7vw]">
+      <div className="relative z-10 mx-auto w-full max-w-[460px]">
         <LoginCard onSubmit={handleLogin} isLoading={isLoading} error={error} />
       </div>
     </main>
