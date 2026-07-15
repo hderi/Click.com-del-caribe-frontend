@@ -1,24 +1,12 @@
-﻿"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+"use client";
 
 const WHATSAPP_NUMBER = "529871119621";
 const STEPS = ["Recibido", "Diagnostico", "Revision", "Reparacion", "Entrega"];
 
 export default function HeroSection() {
-  const [folio, setFolio] = useState("");
-  const router = useRouter();
   const whatsappMessage = encodeURIComponent(
-    "Hola, quiero informacion sobre reparacion o soporte tecnico."
+    "Hola, necesito mi enlace privado de seguimiento o informacion sobre reparacion."
   );
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const cleanFolio = folio.trim().toUpperCase();
-    if (!cleanFolio) return;
-    router.push(`/seguimiento/${cleanFolio}`);
-  };
 
   return (
     <section
@@ -52,7 +40,7 @@ export default function HeroSection() {
             Consulta que esta pasando con tu equipo.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base font-bold leading-8 text-white/72">
-            Si recibiste un folio o un enlace por WhatsApp, puedes revisar el avance
+            Si recibiste un enlace privado por WhatsApp, puedes revisar el avance
             de tu reparacion como si fuera el seguimiento de un pedido.
           </p>
         </div>
@@ -76,41 +64,31 @@ export default function HeroSection() {
               </div>
             </div>
 
-            <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_0.92fr] lg:items-end">
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_0.92fr] lg:items-stretch">
+              <div className="space-y-4 rounded-3xl border border-[#DDE7EF] bg-[#F7FAFD] p-6">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FF7A00]">
-                    Localiza tu orden
+                    Acceso privado
                   </p>
                   <h2 className="mt-2 text-3xl font-black text-[#080808]">
-                    Ingresa tu folio
+                    Usa el enlace que te envia el taller
                   </h2>
                   <p className="mt-2 text-sm font-bold leading-6 text-[#5B6472]">
-                    El sistema enviara este enlace por WhatsApp cuando la reparacion este registrada.
+                    Por seguridad, el seguimiento no se abre escribiendo solo el folio. Cada orden tiene un enlace privado con token.
                   </p>
                 </div>
 
-                <input
-                  value={folio}
-                  onChange={(event) => setFolio(event.target.value)}
-                  placeholder="Ejemplo: RX-101"
-                  className="min-h-16 w-full rounded-3xl border-2 border-[#00AEEF] bg-white px-6 text-base font-black text-[#111827] outline-none shadow-[0_0_0_6px_rgba(0,174,239,0.10)] transition placeholder:text-[#9AA3AF] focus:border-[#FF7A00] focus:shadow-[0_0_0_6px_rgba(255,122,0,0.14)]"
-                />
-
-                <button
-                  type="submit"
-                  className="min-h-16 w-full rounded-3xl bg-[#FF7A00] px-6 text-base font-black text-white shadow-xl shadow-[#FF7A00]/20 transition hover:bg-[#FFA21A]"
-                >
-                  Consultar avance
-                </button>
-              </form>
+                <div className="rounded-3xl bg-white px-5 py-4 text-sm font-black leading-6 text-[#344154] ring-1 ring-[#DDE7EF]">
+                  Si perdiste tu enlace, escribe al taller y te lo reenviamos por WhatsApp.
+                </div>
+              </div>
 
               <div className="rounded-3xl bg-[#07111B] p-5 text-white">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFA21A]">
                   Acceso por enlace
                 </p>
-                <p c="">
-                
+                <p className="mt-3 text-sm font-bold leading-6 text-white/72">
+                  El enlace privado incluye tu folio y una clave segura para ver solo la informacion de tu reparacion.
                 </p>
                 <a
                   href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
@@ -128,4 +106,3 @@ export default function HeroSection() {
     </section>
   );
 }
-

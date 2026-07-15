@@ -1,16 +1,19 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { formatDate, formatTime, formatMoney } from "@/lib/api";
+import { getToken } from "@/lib/authStorage";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 function value(...items) {
-  return items.find((item) => item !== undefined && item !== null && item !== "") ?? "—";
+  const found = items.find((item) => item !== undefined && item !== null && item !== "");
+  return found === undefined ? "—" : found;
 }
 
 function normalizePhotos(repair) {
   const photos = [
+    ...(Array.isArray(repair?.photos) ? repair.photos : []),
     ...(Array.isArray(repair?.fotosRecepcion) ? repair.fotosRecepcion : []),
     ...(Array.isArray(repair?.fotos) ? repair.fotos : []),
     ...(Array.isArray(repair?.imagenes) ? repair.imagenes : []),
@@ -27,8 +30,12 @@ function normalizePhotos(repair) {
 function photoSrc(photo) {
   const src = typeof photo === "string" ? photo : photo?.url || photo?.ruta || photo?.src;
   if (!src) return "";
-  if (src.startsWith("http") || src.startsWith("data:")) return src;
-  return `${API_BASE}${src.startsWith("/") ? src : `/${src}`}`;
+  if (src.startsWith("data:")) return src;
+  const absolute = src.startsWith("http") ? src : `${API_BASE}${src.startsWith("/") ? src : `/${src}`}`;
+  if (!absolute.includes("/uploads/") || absolute.includes("token=")) return absolute;
+  const token = getToken();
+  if (!token) return absolute;
+  return `${absolute}${absolute.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
 }
 
 function Field({ label, children }) {
@@ -66,6 +73,7 @@ export default function RepairDetail({ repair }) {
   const cliente = repair.cliente || {};
   const equipo = repair.equipo || {};
   const pago = repair.pago || {};
+  const anticipo = repair.anticipo || repair.advance || {};
   const garantia = repair.garantia || {};
   const historial = Array.isArray(repair.historial) ? repair.historial : Array.isArray(repair.timeline) ? repair.timeline : [];
   const photos = normalizePhotos(repair);
@@ -130,9 +138,9 @@ export default function RepairDetail({ repair }) {
 
           <Box title="Pago y anticipo">
             <Field label="Costo del servicio">{formatMoney(value(pago.costoServicio, repair.costoServicio))}</Field>
-            <Field label="Anticipo">{formatMoney(value(pago.anticipo, repair.anticipo))}</Field>
-            <Field label="Forma de pago">{value(pago.metodoPago, repair.metodoPago)}</Field>
-            <Field label="Saldo">{formatMoney(value(pago.saldo, repair.saldo))}</Field>
+            <Field label="Anticipo">{formatMoney(value(anticipo.monto, pago.anticipo, repair.anticipoMonto))}</Field>
+            <Field label="Forma de pago">{value(anticipo.formaPago, pago.metodoPago, repair.metodoPago)}</Field>
+            <Field label="Saldo">{formatMoney(value(pago.saldoPendiente, pago.saldo, repair.saldo))}</Field>
             <Field label="Factura">{value(pago.factura, repair.factura)}</Field>
           </Box>
 
@@ -194,3 +202,5 @@ export default function RepairDetail({ repair }) {
     </div>
   );
 }
+
+

@@ -1,8 +1,5 @@
 "use client";
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   InputField — Form input with label, required indicator,
-   and error message. Extends the design system input styling.
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
 export default function InputField({
   id,
   type = "text",
@@ -20,14 +17,14 @@ export default function InputField({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className={`flex items-center gap-1 text-sm font-medium ${light ? "text-[#263548]" : "text-[#334155]"}`}>
+        <label htmlFor={id} className={`flex items-center gap-1 text-xs font-semibold ${light ? "text-[#374151]" : "text-[#374151]"}`}>
           {label}
-          {required && <span className="text-brand-orange text-xs">*</span>}
+          {required && <span className="text-[#b91c1c]">*</span>}
         </label>
       )}
-      <div className="relative group">
+      <div className="relative">
         {icon && (
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] transition-colors duration-200 group-focus-within:text-brand-blue pointer-events-none">
+          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6b7280]">
             {icon}
           </div>
         )}
@@ -39,33 +36,13 @@ export default function InputField({
           onChange={onChange}
           required={required}
           disabled={disabled}
-          className={`
-            w-full rounded-xl border
-            ${error ? "border-error/50 focus:border-error" : "border-[#D5E2EC] focus:border-brand-blue"}
-            ${light ? "bg-white text-[#0F172A] placeholder:text-[#7A8797] focus:bg-white hover:bg-white" : "bg-white text-[#102033] placeholder:text-[#7A8AA0] focus:bg-white hover:bg-[#F8FBFD]"}
-            transition-all duration-300 ease-out
-            focus:shadow-[var(--shadow-input-focus)]
-            hover:border-[#BFD0DF]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            text-sm leading-5 outline-none
-            ${icon ? "pl-11" : "pl-4"} pr-4 py-3
-          `}
+          className={`w-full rounded-md border bg-white py-2 text-sm leading-5 text-[#111827] outline-none transition-colors placeholder:text-[#9ca3af] disabled:cursor-not-allowed disabled:bg-[#f3f4f6] disabled:text-[#6b7280] ${
+            error ? "border-red-300 focus:border-red-500" : "border-[#d1d5db] focus:border-[#2563eb]"
+          } ${icon ? "pl-10" : "pl-3"} pr-3`}
           {...props}
         />
-        <div className={`absolute inset-0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none ring-1 ${error ? "ring-error/20" : "ring-brand-blue/20"}`} />
       </div>
-      {error && (
-        <p className="text-[11px] text-error font-medium flex items-center gap-1">
-          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-          {error}
-        </p>
-      )}
+      {error && <p className="text-xs font-medium text-[#b91c1c]">{error}</p>}
     </div>
   );
 }
-
-
-
-

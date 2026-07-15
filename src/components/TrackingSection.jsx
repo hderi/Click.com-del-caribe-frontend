@@ -1,21 +1,8 @@
-﻿"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+"use client";
 
 const STEPS = ["Recibido", "Diagnostico", "En reparacion", "Pruebas", "Entregado"];
 
 export default function TrackingSection() {
-  const [folio, setFolio] = useState("");
-  const router = useRouter();
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const cleanFolio = folio.trim().toUpperCase();
-    if (!cleanFolio) return;
-    router.push(`/seguimiento/${cleanFolio}`);
-  };
-
   return (
     <section id="seguimiento" className="relative overflow-hidden bg-[#F4F8FC] px-5 py-24 sm:px-8 lg:px-12">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(0,174,239,0.15),transparent_28%),radial-gradient(circle_at_82%_72%,rgba(255,122,0,0.14),transparent_28%)]" />
@@ -27,21 +14,16 @@ export default function TrackingSection() {
             La vista donde el cliente ve el avance real.
           </h2>
           <p className="mt-4 max-w-xl text-base leading-8 text-[#4B5563]">
-            Aqui el cliente podra consultar estado, observaciones, fotos del avance
-            y mensajes importantes del taller durante el proceso de servicio.
+            El seguimiento se abre solo desde el enlace privado que entrega el taller.
+            Asi protegemos datos del cliente, fotos, equipo y saldo de la reparacion.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 flex max-w-xl flex-col gap-3 rounded-[2rem] border border-white bg-white/86 p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row">
-            <input
-              value={folio}
-              onChange={(event) => setFolio(event.target.value)}
-              placeholder="Ejemplo: RX-101"
-              className="min-h-14 flex-1 rounded-3xl border border-[#DDE7EF] bg-[#F7FAFD] px-5 text-sm font-bold text-[#111827] outline-none transition focus:border-[#00AEEF] focus:bg-white focus:ring-4 focus:ring-[#00AEEF]/10"
-            />
-            <button type="submit" className="min-h-14 rounded-3xl bg-[#00AEEF] px-7 text-sm font-black text-white transition hover:bg-[#FF7A00]">
-              Abrir seguimiento
-            </button>
-          </form>
+          <div className="mt-8 max-w-xl rounded-[2rem] border border-white bg-white/86 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0077B6]">Enlace privado</p>
+            <p className="mt-2 text-sm font-bold leading-6 text-[#526174]">
+              Si el cliente pierde su enlace, el taller puede reenviarlo desde la orden registrada.
+            </p>
+          </div>
         </div>
 
         <div className="rounded-[2rem] bg-[#07111B] p-4 shadow-[0_28px_90px_rgba(15,23,42,0.18)]">
@@ -74,7 +56,7 @@ export default function TrackingSection() {
               <div className="rounded-3xl bg-[#EAF8FF] p-5 ring-1 ring-[#00AEEF]/15">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0077B6]">Observacion</p>
                 <p className="mt-2 text-sm font-bold leading-6 text-[#344154]">
-                  Se detectó falla en módulo de memoria. Equipo en pruebas después del reemplazo.
+                  Se detecto falla en modulo de memoria. Equipo en pruebas despues del reemplazo.
                 </p>
               </div>
               <div className="rounded-3xl bg-[#FFF3E8] p-5 ring-1 ring-[#FF7A00]/15">
@@ -92,5 +74,3 @@ export default function TrackingSection() {
     </section>
   );
 }
-
-

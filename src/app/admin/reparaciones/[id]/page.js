@@ -54,7 +54,6 @@ function mapRepair(data, mensaje) {
     payment: data.pago || {},
     advance: data.anticipo || {},
     warranty: data.garantia || {},
-    devicePassword: equipo.passwordEquipo || "",
     dateIn: formatDateOnly(data.fechaIngreso || data.creadoEn),
     dateEstimated: formatDateOnly(data.fechaEntregaEstimada, "Sin definir"),
     trackingUrl: mensaje?.link || "",

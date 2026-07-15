@@ -73,7 +73,7 @@ export default function ConfiguracionPage() {
     setError("");
     try {
       const data = await api("/api/usuarios");
-      setUsuarios(Array.isArray(data) ? data : []);
+      setUsuarios(Array.isArray(data?.usuarios) ? data.usuarios : []);
     } catch (err) {
       setError(err.message);
     } finally {

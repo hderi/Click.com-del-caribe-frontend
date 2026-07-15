@@ -7,8 +7,9 @@ import FormSection from "@/components/admin/FormSection";
 import InputField from "@/components/admin/InputField";
 import SelectField from "@/components/admin/SelectField";
 import Button from "@/components/ui/Button";
+import { sanitizeEmail, sanitizeMultiline, sanitizePhone, sanitizeText } from "@/lib/sanitize";
+import { timeLocalInput, todayLocalInput } from "@/lib/adminFormat";
 
-const MARCAS_COMUNES = ["Dell", "HP", "Lenovo", "Apple", "Acer", "Asus", "Epson", "Canon", "Brother", "Samsung", "LG", "Gigabyte", "Qian", "Ubiquiti", "Intel", "AMD", "Kingston", "ADATA", "TP-Link", "Logitech"];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const DEVICE_TYPES = [
@@ -338,14 +339,6 @@ export default function NewRepairForm() {
   };
 
   const handleSubmit = async (event) => {
-    const costoServicio = Number(form?.costoServicio || 0);
-    const anticipo = Number(form?.anticipo || 0);
-    if (anticipo > costoServicio && costoServicio > 0) {
-      setError?.("El anticipo no puede ser mayor al costo del servicio.");
-      alert("El anticipo no puede ser mayor al costo del servicio.");
-      return;
-    }
-
     event.preventDefault();
     if (!validate()) return;
     setIsSubmitting(true);
@@ -640,7 +633,7 @@ export default function NewRepairForm() {
 
       <FormSection title="Garantía e información adicional" description="Datos que ayudan al técnico, a la entrega y al cierre del folio">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <InputField id="device-password" label="Contraseña del equipo" type="text" placeholder="Opcional" value={form.devicePassword} onChange={set("devicePassword")} />
+          <InputField id="device-password" label="Contraseña del equipo" type="password" placeholder="Opcional" value={form.devicePassword} onChange={set("devicePassword")} />
           <InputField id="date-in" label="Fecha de ingreso" type="date" value={form.dateIn} onChange={set("dateIn")} required />
           <InputField id="date-estimated" label="Fecha entrega estimada" type="date" value={form.dateEstimated} onChange={set("dateEstimated")} />
           <SelectField id="warranty-applies" label="Garantía" value={form.warrantyApplies} onChange={set("warrantyApplies")} options={GUARANTEE_OPTIONS} />

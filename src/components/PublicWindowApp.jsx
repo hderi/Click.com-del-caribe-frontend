@@ -1,8 +1,7 @@
-"use client";
+﻿"use client";
+import { useEffect, useMemo, useState } from "react";
 
-const PHONE = "529871119621";
-const ADDRESS =
-  "Av. Benito Juárez, Entre 80 Av. Sur y Diagonal 85 Av. Sur, Local 3, MZ 214, Lote 006, Colonia Ejidal, Playa del Carmen, Quintana Roo";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const valores = [
   "Respeto",
@@ -86,8 +85,8 @@ function goTo(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function whatsapp(text) {
-  return "https://wa.me/" + PHONE + "?text=" + encodeURIComponent(text);
+function whatsapp(phone, text) {
+  return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
 }
 
 function SectionLabel({ children }) {
@@ -99,6 +98,49 @@ function SectionLabel({ children }) {
 }
 
 export default function PublicWindowApp() {
+  const [publicConfig, setPublicConfig] = useState({});
+  const [promoConfig, setPromoConfig] = useState({});
+  const [companyConfig, setCompanyConfig] = useState({});
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadPublicConfig() {
+      try {
+        const [pageRes, promosRes, companyRes] = await Promise.all([
+          fetch(`${API_URL}/api/public/configuracion/pagina_clientes`),
+          fetch(`${API_URL}/api/public/configuracion/promociones`),
+          fetch(`${API_URL}/api/public/configuracion/empresa`),
+        ]);
+        const [page, promo, company] = await Promise.all([
+          pageRes.ok ? pageRes.json() : {},
+          promosRes.ok ? promosRes.json() : {},
+          companyRes.ok ? companyRes.json() : {},
+        ]);
+        if (!ignore) {
+          setPublicConfig(page.datos || {});
+          setPromoConfig(promo.datos || {});
+          setCompanyConfig(company.datos || {});
+        }
+      } catch (_) {}
+    }
+    loadPublicConfig();
+    return () => { ignore = true; };
+  }, []);
+
+  const rawPhone = String(companyConfig.telefono || "529871119621").replace(/\D/g, "");
+  const whatsappPhone = rawPhone.startsWith("52") ? rawPhone : `52${rawPhone}`;
+  const address = companyConfig.direccion || "Av. Benito Juarez, Playa del Carmen, Quintana Roo";
+  const activePromos = useMemo(() => {
+    const configured = Array.isArray(promoConfig.promociones) ? promoConfig.promociones.filter((item) => item.activo !== false) : [];
+    if (!configured.length) return promos;
+    return configured.map((item) => ({
+      title: item.nombre || item.title || "Promocion",
+      detail: item.descripcion || item.detail || "",
+      price: item.precio || item.price || "",
+      image: item.imagen || item.image || "",
+    }));
+  }, [promoConfig]);
+  const visibleValues = String(publicConfig.valores || valores.join(",")).split(",").map((item) => item.trim()).filter(Boolean);
   return (
     <main className="min-h-screen bg-[#F6F9FE] font-sans text-[#071A33]">
       <header className="sticky top-0 z-50 border-b border-[#E4EBF5] bg-white/95 backdrop-blur">
@@ -115,19 +157,10 @@ export default function PublicWindowApp() {
             <button onClick={() => goTo("inicio")} className="border-b-2 border-[#0057D9] py-2 text-[#0057D9]">
               Inicio
             </button>
-            <button onClick={() => goTo("servicios")} className="py-2 hover:text-[#0057D9]">
-              Servicios
-            </button>
-            <button onClick={() => goTo("promociones")} className="py-2 hover:text-[#0057D9]">
-              Promociones
-            </button>
-            <button onClick={() => goTo("contacto")} className="py-2 hover:text-[#0057D9]">
-              Contacto
-            </button>
           </nav>
 
           <a
-            href={whatsapp("Hola, quiero información de CLICK.COM del Caribe.")}
+            href={whatsapp(whatsappPhone, "Hola, quiero informacion de CLICK.COM del Caribe.")}
             target="_blank"
             rel="noreferrer"
             className="rounded-lg bg-[#FF6B00] px-5 py-3 text-[14px] font-extrabold text-white shadow-sm transition hover:bg-[#E85F00]"
@@ -141,6 +174,26 @@ export default function PublicWindowApp() {
         id="inicio"
         className="relative overflow-hidden bg-[radial-gradient(circle_at_left_bottom,#DDEFFF_0,#F7FAFF_35%,transparent_62%),radial-gradient(circle_at_right_top,#FFE3C9_0,#F8FAFF_34%,transparent_64%)]"
       >
+        <div className="mx-auto max-w-7xl px-5 pt-8 lg:px-8 lg:pt-10">
+          <div className="overflow-hidden rounded-[24px] border border-[#E3EAF4] bg-white shadow-[0_22px_60px_rgba(15,40,75,0.10)]">
+            <img
+              src="/home-clickcom-hero.png"
+              alt="CLICK.COM del Caribe, soluciones tecnologicas que impulsan tu mundo"
+              className="w-full object-cover"
+            />
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-5 pt-8 lg:px-8">
+          <div className="overflow-hidden rounded-[24px] border border-[#E3EAF4] bg-white shadow-[0_22px_60px_rgba(15,40,75,0.10)]">
+            <img
+              src="/home-clickcom-nosotros.png"
+              alt="Nosotros, mision, vision y valores de CLICK.COM del Caribe"
+              className="w-full object-cover"
+            />
+          </div>
+        </div>
+
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 lg:grid-cols-[1fr_1.12fr] lg:px-8 lg:py-20">
           <div className="flex flex-col justify-center">
             <div className="mb-6 flex items-center gap-3">
@@ -156,9 +209,7 @@ export default function PublicWindowApp() {
             </h1>
 
             <p className="mt-6 max-w-xl text-[17px] font-medium leading-8 text-[#34435B]">
-              Somos una empresa dedicada al negocio tecnológico con vocación de servicio,
-              brindando soluciones integrales a empresas, instituciones gubernamentales
-              y clientes particulares.
+              {publicConfig.quienesSomos || "Somos una empresa dedicada al negocio tecnologico con vocacion de servicio, brindando soluciones integrales a empresas, instituciones gubernamentales y clientes particulares."}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -182,13 +233,13 @@ export default function PublicWindowApp() {
               <div className="space-y-5">
                 <InfoBlock
                   color="blue"
-                  title="Misión"
-                  text="Proveer productos y servicios de calidad que satisfagan las expectativas de nuestros clientes, innovando y siendo competitivos en soluciones tecnológicas."
+                  title="Mision"
+                  text={publicConfig.mision || "Proveer productos y servicios de calidad que satisfagan las expectativas de nuestros clientes, innovando y siendo competitivos en soluciones tecnologicas."}
                 />
                 <InfoBlock
                   color="orange"
-                  title="Visión"
-                  text="Ser una empresa exitosa, rentable y atractiva, dedicada al negocio tecnológico con vocación de servicio y soluciones integrales."
+                  title="Vision"
+                  text={publicConfig.vision || "Ser una empresa exitosa, rentable y atractiva, dedicada al negocio tecnologico con vocacion de servicio y soluciones integrales."}
                 />
               </div>
 
@@ -204,7 +255,7 @@ export default function PublicWindowApp() {
             <div id="valores" className="mt-7 border-t border-[#E4EBF5] pt-6">
               <SectionLabel>Valores</SectionLabel>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-                {valores.map((valor) => (
+                {visibleValues.map((valor) => (
                   <div
                     key={valor}
                     className="rounded-xl border border-[#E1EAF5] bg-white px-3 py-4 text-center text-[12px] font-bold text-[#30425C]"
@@ -219,9 +270,9 @@ export default function PublicWindowApp() {
         </div>
 
         <div className="mx-auto grid max-w-6xl gap-5 px-5 pb-14 md:grid-cols-3 lg:px-8">
-          <Feature title="Soluciones confiables" text="Tecnología de calidad para optimizar tu negocio." />
-          <Feature title="Innovación constante" text="Buscamos herramientas útiles y modernas para cada necesidad." accent />
-          <Feature title="Soporte especializado" text="Acompañamiento técnico antes, durante y después." />
+          <Feature title="Soluciones confiables" text="Tecnologia de calidad para optimizar tu negocio." />
+          <Feature title="Innovacion constante" text="Buscamos herramientas utiles y modernas para cada necesidad." accent />
+          <Feature title="Soporte especializado" text="Acompanamiento tecnico antes, durante y despues." />
         </div>
       </section>
 
@@ -274,17 +325,19 @@ export default function PublicWindowApp() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
-            {promos.map((promo) => (
+            {activePromos.map((promo) => (
               <article key={promo.title} className="overflow-hidden rounded-xl bg-white shadow-sm">
-                <a href={promo.image} target="_blank" rel="noreferrer" className="block bg-[#EEF4FA]">
-                  <img src={promo.image} alt={promo.title} className="h-72 w-full object-cover" />
-                </a>
+                {promo.image ? (
+                  <a href={promo.image} target="_blank" rel="noreferrer" className="block bg-[#EEF4FA]">
+                    <img src={promo.image} alt={promo.title} className="h-72 w-full object-cover" />
+                  </a>
+                ) : null}
                 <div className="p-4">
                   <h3 className="text-[15px] font-black leading-5 text-[#071A33]">{promo.title}</h3>
                   <p className="mt-2 min-h-[54px] text-[12px] leading-5 text-[#5F6F83]">{promo.detail}</p>
                   <p className="mt-3 text-xl font-black text-[#FF6B00]">{promo.price}</p>
                   <a
-                    href={whatsapp("Hola, quiero preguntar por: " + promo.title)}
+                    href={whatsapp(whatsappPhone, "Hola, quiero preguntar por: " + promo.title)}
                     target="_blank"
                     rel="noreferrer"
                     className="mt-4 block rounded-lg bg-[#0057D9] px-4 py-3 text-center text-[13px] font-extrabold text-white hover:bg-[#0048B8]"
@@ -310,14 +363,12 @@ export default function PublicWindowApp() {
           <div className="rounded-xl border border-[#DFE8F4] bg-white p-6">
             <h3 className="text-lg font-black text-[#071A33]">Sucursal Playa del Carmen</h3>
             <div className="mt-5 space-y-4 text-[14px] leading-7 text-[#3B4C63]">
-              <p>{ADDRESS}.</p>
-              <p><strong>Teléfono:</strong> (987) 111 9621</p>
-              <p><strong>Correo:</strong> erickalh56@gmail.com</p>
+              <p>{address}.</p>
+              <p><strong>Telefono:</strong> {companyConfig.telefono || "(987) 111 9621"}</p>
+              <p><strong>Correo:</strong> {companyConfig.correo || "contacto@clickcomdelcaribe.com"}</p>
               <p>
                 <strong>Horario:</strong><br />
-                Lunes a Viernes: 9:00 AM - 6:00 PM<br />
-                Sábado: 9:00 AM - 3:00 PM<br />
-                Domingo: Cerrado
+                {companyConfig.horario || "Lunes a viernes 9:00 AM - 6:00 PM. Sabado 9:00 AM - 3:00 PM. Domingo cerrado."}
               </p>
             </div>
           </div>
@@ -325,7 +376,7 @@ export default function PublicWindowApp() {
           <div className="overflow-hidden rounded-xl border border-[#DFE8F4] bg-white">
             <iframe
               title="Ubicación CLICK.COM del Caribe"
-              src={"https://www.google.com/maps?q=" + encodeURIComponent(ADDRESS) + "&output=embed"}
+              src={companyConfig.mapa || ("https://www.google.com/maps?q=" + encodeURIComponent(address) + "&output=embed")}
               className="h-full min-h-[320px] w-full"
               loading="lazy"
             />
@@ -338,7 +389,7 @@ export default function PublicWindowApp() {
               <input className="w-full rounded-lg border border-[#D7E2F0] px-4 py-3 text-[14px] outline-none focus:border-[#0057D9]" placeholder="Teléfono / WhatsApp" />
               <textarea className="min-h-28 w-full rounded-lg border border-[#D7E2F0] px-4 py-3 text-[14px] outline-none focus:border-[#0057D9]" placeholder="Mensaje" />
               <a
-                href={whatsapp("Hola, quiero información de CLICK.COM del Caribe.")}
+                href={whatsapp(whatsappPhone, "Hola, quiero informacion de CLICK.COM del Caribe.")}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-lg bg-[#0057D9] px-4 py-3 text-center text-[14px] font-extrabold text-white hover:bg-[#0048B8]"
@@ -394,3 +445,9 @@ function Feature({ title, text, accent }) {
     </article>
   );
 }
+
+
+
+
+
+

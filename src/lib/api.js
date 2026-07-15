@@ -2,11 +2,6 @@
 import { getToken } from "@/lib/authStorage";
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export function getToken() {
-  if (typeof window === "undefined") return "";
-  return getToken() || localStorage.getItem("token") || "";
-}
-
 export function authHeaders(extra = {}) {
   const token = getToken();
   return {
@@ -60,3 +55,4 @@ export function formatMoney(value) {
   const amount = Number(value || 0);
   return amount.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 }
+

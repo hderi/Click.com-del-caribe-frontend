@@ -13,20 +13,27 @@ export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-[520px] overflow-hidden rounded-[28px] border border-[#C9D8E6] bg-white px-8 py-9 shadow-[0_22px_70px_rgba(30,64,95,0.14)] sm:px-12">
+    <section
+      className="relative mx-auto w-full max-w-[520px] rounded-[28px] border border-[#C9D8E6] bg-white px-6 py-6 shadow-[0_22px_70px_rgba(30,64,95,0.14)] sm:px-10"
+      style={{ maxHeight: "calc(100dvh - 32px)", overflowY: "auto", overflowX: "hidden" }}
+    >
       <div className="absolute left-0 right-0 top-0 h-[3px] bg-[#0B79D0]" />
       <div className="absolute -right-14 -top-14 h-32 w-32 rounded-full bg-[#E4F5FC]" />
       <div className="absolute -bottom-16 -left-14 h-32 w-32 rounded-full bg-[#FFF0DC]" />
 
       <div className="relative text-center">
-        <div className="mx-auto flex h-28 w-40 items-center justify-center rounded-2xl border border-[#D4E7F3] bg-white">
-          <img src="/logo-clickcom.png.jpeg" alt="CLICK.COM del Caribe" className="max-h-24 max-w-36 object-contain" />
+        <div className="mx-auto flex h-20 w-32 items-center justify-center rounded-2xl border border-[#D4E7F3] bg-white">
+          <img src="/logo-clickcom.png.jpeg" alt="CLICK.COM del Caribe" className="max-h-16 max-w-28 object-contain" />
         </div>
-        <p className="mt-6 text-sm font-bold uppercase tracking-[0.28em] text-[#0B79D0]">Acceso interno</p>
-        <h1 className="mt-3 text-3xl font-black tracking-[-0.03em] text-[#102033]">Panel administrativo</h1>
+        <p className="mt-4 text-sm font-bold uppercase tracking-[0.22em] text-[#0B79D0]">Acceso interno</p>
+        <h1 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#102033]">Panel administrativo</h1>
       </div>
 
-      <form onSubmit={submit} className="relative mt-9 space-y-5">
+      <form
+        onSubmit={submit}
+        className="relative mt-6 space-y-4"
+        style={{ display: "block", border: 0, minHeight: 0, padding: 0 }}
+      >
         <Field
           label="Usuario"
           value={usuario}
@@ -46,7 +53,7 @@ export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Tu contraseña"
               autoComplete="current-password"
-              className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-semibold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
+              className="min-w-0 flex-1 bg-transparent px-3 py-3 text-base font-semibold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
               required
             />
             <button
@@ -59,22 +66,38 @@ export default function LoginCard({ onSubmit, isLoading = false, error = "" }) {
           </div>
         </div>
 
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="flex w-full items-center justify-center rounded-xl bg-[#0B79D0] px-6 py-3.5 text-lg font-black text-white transition hover:bg-[#075FA7] disabled:cursor-not-allowed disabled:opacity-70"
+          style={{
+            display: "flex",
+            width: "100%",
+            minHeight: 54,
+            alignItems: "center",
+            justifyContent: "center",
+            border: 0,
+            borderRadius: 12,
+            background: isLoading ? "#6AA9DA" : "#0B79D0",
+            color: "#FFFFFF",
+            fontSize: 18,
+            fontWeight: 900,
+            cursor: isLoading ? "not-allowed" : "pointer",
+            position: "relative",
+            zIndex: 20,
+          }}
+        >
+          {isLoading ? "Entrando..." : "Entrar"}
+        </button>
+
         {error ? (
           <div className="rounded-xl border border-[#FFC0C0] bg-[#FFF0F0] px-4 py-3 text-sm font-bold text-[#B91C1C]">
             {error}
           </div>
         ) : null}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="flex w-full items-center justify-center rounded-xl bg-[#0B79D0] px-6 py-4 text-lg font-black text-white transition hover:bg-[#075FA7] disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isLoading ? "Entrando..." : "Entrar"}
-        </button>
       </form>
 
-      <div className="relative mt-8 text-center">
+      <div className="relative mt-5 text-center">
         <p className="text-sm font-semibold text-[#6B7A90]">Acceso restringido. Solo personal autorizado.</p>
         <p className="mt-2 text-sm font-bold text-[#8CA0B5]">
           CLICK.COM del Caribe - Servicio especializado en informática
@@ -92,7 +115,7 @@ function Field({ label, icon, ...props }) {
         <Icon type={icon} />
         <input
           {...props}
-          className="min-w-0 flex-1 bg-transparent px-3 py-4 text-base font-semibold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
+          className="min-w-0 flex-1 bg-transparent px-3 py-3 text-base font-semibold text-[#102033] outline-none placeholder:text-[#9AA8BA]"
           required
         />
       </div>

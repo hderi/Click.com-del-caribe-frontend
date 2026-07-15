@@ -97,7 +97,7 @@ export default function ReparacionesPage() {
   }, [repairs]);
 
   return (
-    <div className="space-y-6 font-['Manrope','Aptos','Segoe_UI',system-ui,sans-serif]">
+    <div className="space-y-6">
       <RepairsHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} repairCount={repairs.length} />
 
       {error && (

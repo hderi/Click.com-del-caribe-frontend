@@ -9,9 +9,8 @@ import LoginBackground from "@/components/admin/LoginBackground";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function AdminLoginPage() {
-  
   const router = useRouter();
-const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async ({ usuario, password }) => {
@@ -30,7 +29,10 @@ const [isLoading, setIsLoading] = useState(false);
       setSession(data.token, data.usuario);
       router.push("/admin/dashboard");
     } catch (err) {
-      setError(err.message || "Usuario o contraseña incorrectos");
+      const message = err instanceof TypeError
+        ? `No se pudo conectar con el backend en ${API_URL}. Revisa que el servidor esté encendido.`
+        : err.message || "Usuario o contraseña incorrectos";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -40,17 +42,18 @@ const [isLoading, setIsLoading] = useState(false);
     <main
       style={{
         position: "relative",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
-        padding: "32px 16px",
-        overflow: "hidden",
+        padding: "16px 16px 96px",
+        overflowX: "hidden",
+        overflowY: "auto",
         fontFamily: "Inter, Segoe UI, Arial, sans-serif",
       }}
     >
       <LoginBackground />
-      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: 540 }}>
+      <div className="relative z-10 mx-auto w-full max-w-[540px] lg:ml-auto lg:mr-[7vw]">
         <LoginCard onSubmit={handleLogin} isLoading={isLoading} error={error} />
       </div>
     </main>

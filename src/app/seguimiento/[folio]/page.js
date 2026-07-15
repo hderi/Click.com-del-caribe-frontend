@@ -18,6 +18,12 @@ function stepIndex(status) {
   return index >= 0 ? index : 0;
 }
 
+function photoUrl(photo) {
+  const src = String(photo?.url || "");
+  if (!src || src.startsWith("http") || src.startsWith("data:")) return src;
+  return `${API_URL}${src.startsWith("/") ? src : `/${src}`}`;
+}
+
 export default function PublicTrackingPage({ params }) {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
@@ -166,7 +172,7 @@ export default function PublicTrackingPage({ params }) {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {(repair.fotos || []).length ? repair.fotos.map((photo, index) => (
               <article key={`${photo.nombre || "foto"}-${index}`} className="overflow-hidden rounded-3xl border border-[#E9EEF3] bg-[#F5F7FA] p-5 text-sm font-bold text-[#4B5563]">
-                {photo.url ? <img src={photo.url} alt={photo.nombre || "Foto del avance"} className="aspect-[4/3] w-full rounded-2xl object-cover" /> : photo.nombre || "Foto registrada"}
+                {photo.url ? <img src={photoUrl(photo)} alt={photo.nombre || "Foto del avance"} className="aspect-[4/3] w-full rounded-2xl object-cover" /> : photo.nombre || "Foto registrada"}
               </article>
             )) : (
               <div className="rounded-3xl border border-dashed border-[#D6E1EA] bg-[#F5F7FA] p-8 text-sm font-bold text-[#4B5563] md:col-span-3">

@@ -56,7 +56,7 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="space-y-5 font-['Manrope','Aptos','Segoe_UI',system-ui,sans-serif]">
+    <div className="space-y-5">
       <section className="rounded-[26px] border border-[#C9D8E5] bg-white p-6 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF7A00]">Cuenta</p>
         <h1 className="mt-2 text-3xl font-black tracking-[-0.03em] text-[#102033]">Mi perfil</h1>

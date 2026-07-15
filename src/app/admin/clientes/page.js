@@ -197,7 +197,7 @@ export default function ClientesPage() {
   };
 
   return (
-    <div className="space-y-6 font-['Manrope','Aptos','Segoe_UI',system-ui,sans-serif]">
+    <div className="space-y-6">
       <ClientsHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

@@ -5,10 +5,9 @@ export default function LoginBackground() {
     <div className="fixed inset-0 -z-10 overflow-hidden bg-[#EAF5FB]">
       <div
         className="absolute inset-0 bg-cover bg-center opacity-95"
-        style={{ backgroundImage: "url('/login-bg-clickcom.png')" }}
+        style={{ backgroundImage: "url('/login-bg-clickcom-new.png')" }}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(236,248,255,0.30),rgba(255,255,255,0.38),rgba(255,232,204,0.28))]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(0,168,232,0.18),transparent_34%),radial-gradient(circle_at_82%_20%,rgba(255,122,0,0.18),transparent_32%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(236,248,255,0.10),rgba(255,255,255,0.16),rgba(255,232,204,0.12))]" />
     </div>
   );
 }
