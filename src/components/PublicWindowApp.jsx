@@ -97,6 +97,22 @@ function SectionLabel({ children }) {
   );
 }
 
+function BrandMini({ light = false }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_28%,#BDF5FF_0,#00AEEF_42%,#0057D9_100%)]">
+        <span className="absolute left-1.5 right-1.5 top-3 h-1 rotate-[-10deg] rounded-full bg-[#071A33]" />
+        <span className="absolute left-2 right-2 top-5 h-1 rotate-[-10deg] rounded-full bg-[#071A33]" />
+        <span className="absolute left-0.5 top-2 h-9 w-10 rotate-[-18deg] rounded-[50%] border-[4px] border-[#FF7A00] border-t-transparent" />
+      </span>
+      <span className="leading-none">
+        <span className={`block text-sm font-black tracking-[-0.04em] ${light ? "text-white" : "text-[#071A33]"}`}>CLICK.COM</span>
+        <span className="block text-xs font-black text-[#FF6B00]">DEL CARIBE</span>
+      </span>
+    </div>
+  );
+}
+
 export default function PublicWindowApp() {
   const [publicConfig, setPublicConfig] = useState({});
   const [promoConfig, setPromoConfig] = useState({});
@@ -146,11 +162,7 @@ export default function PublicWindowApp() {
       <header className="sticky top-0 z-50 border-b border-[#E4EBF5] bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <button onClick={() => goTo("inicio")} className="flex items-center gap-3">
-            <img
-              src="/logo-clickcom.png.jpeg"
-              alt="CLICK.COM del Caribe"
-              className="h-12 w-auto object-contain"
-            />
+            <BrandMini />
           </button>
 
           <nav className="hidden items-center gap-8 text-[14px] font-bold text-[#24344D] md:flex">
@@ -247,12 +259,35 @@ export default function PublicWindowApp() {
         </div>
 
         <div className="mx-auto max-w-7xl px-5 pt-8 lg:px-8">
-          <div className="overflow-hidden rounded-[24px] border border-[#E3EAF4] bg-white shadow-[0_22px_60px_rgba(15,40,75,0.10)]">
-            <img
-              src="/home-clickcom-nosotros.png"
-              alt="Nosotros, mision, vision y valores de CLICK.COM del Caribe"
-              className="w-full object-cover"
-            />
+          <div className="relative overflow-hidden rounded-[24px] border border-[#E3EAF4] bg-white p-8 shadow-[0_22px_60px_rgba(15,40,75,0.10)] lg:p-12">
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#FFE2C4]" />
+            <div className="absolute -left-20 bottom-[-120px] h-72 w-72 rounded-full bg-[#DCEBFF]" />
+            <div className="relative grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+              <div>
+                <SectionLabel>Nosotros</SectionLabel>
+                <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight tracking-[-0.04em] text-[#071A33] sm:text-5xl">
+                  Tecnología, soporte y servicio para el Caribe.
+                </h2>
+                <p className="mt-5 max-w-2xl text-[16px] font-medium leading-8 text-[#34435B]">
+                  Somos un equipo enfocado en resolver, acompañar y mantener la operación tecnológica de hogares, oficinas y empresas.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {[
+                  ["01", "Misión", "Resolver con calidad y atención cercana."],
+                  ["02", "Visión", "Ser el aliado tecnológico de confianza."],
+                  ["03", "Valores", "Respeto, honradez y compromiso."],
+                ].map(([number, title, text]) => (
+                  <article key={title} className="rounded-2xl border border-[#DFE8F4] bg-[#F8FBFF] p-5">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0057D9] text-sm font-black text-white">
+                      {number}
+                    </span>
+                    <h3 className="mt-4 text-lg font-black text-[#071A33]">{title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[#56657A]">{text}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -305,12 +340,17 @@ export default function PublicWindowApp() {
                 />
               </div>
 
-              <div className="flex items-center justify-center rounded-2xl bg-[#F4F8FD] p-4">
-                <img
-                  src="/login-bg-clickcom.png"
-                  alt="CLICK.COM del Caribe"
-                  className="max-h-[300px] w-full rounded-xl object-cover"
-                />
+              <div className="relative flex min-h-[300px] items-center justify-center overflow-hidden rounded-2xl bg-[#F4F8FD] p-4">
+                <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-[#DCEBFF]" />
+                <div className="absolute -bottom-16 -right-10 h-48 w-48 rounded-full bg-[#FFE0BF]" />
+                <div className="relative rounded-3xl border border-[#D7E5F4] bg-white px-7 py-8 text-center shadow-sm">
+                  <div className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_28%,#BDF5FF_0,#00AEEF_42%,#0057D9_100%)]">
+                    <span className="h-12 w-16 rotate-[-18deg] rounded-[50%] border-[8px] border-[#FF7A00] border-t-transparent" />
+                  </div>
+                  <p className="text-2xl font-black tracking-[-0.03em] text-[#071A33]">CLICK.COM</p>
+                  <p className="text-lg font-black text-[#FF6B00]">DEL CARIBE</p>
+                  <span className="mx-auto mt-3 block h-1 w-16 rounded-full bg-[#0057D9]" />
+                </div>
               </div>
             </div>
 
@@ -466,7 +506,7 @@ export default function PublicWindowApp() {
       <footer className="border-t border-[#102845] bg-[#071A33] px-5 py-8 text-white lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo-clickcom.png.jpeg" alt="CLICK.COM del Caribe" className="h-12 w-auto rounded bg-white object-contain" />
+            <BrandMini light />
             <div>
               <p className="font-black">CLICK.COM del Caribe</p>
               <p className="text-[13px] text-[#B9C8D9]">Servicio especializado en informática</p>
