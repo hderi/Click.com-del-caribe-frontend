@@ -175,12 +175,74 @@ export default function PublicWindowApp() {
         className="relative overflow-hidden bg-[radial-gradient(circle_at_left_bottom,#DDEFFF_0,#F7FAFF_35%,transparent_62%),radial-gradient(circle_at_right_top,#FFE3C9_0,#F8FAFF_34%,transparent_64%)]"
       >
         <div className="mx-auto max-w-7xl px-5 pt-8 lg:px-8 lg:pt-10">
-          <div className="overflow-hidden rounded-[24px] border border-[#E3EAF4] bg-white shadow-[0_22px_60px_rgba(15,40,75,0.10)]">
-            <img
-              src="/home-clickcom-hero.png"
-              alt="CLICK.COM del Caribe, soluciones tecnologicas que impulsan tu mundo"
-              className="w-full object-cover"
-            />
+          <div className="relative min-h-[430px] overflow-hidden rounded-[24px] border border-[#E3EAF4] bg-white shadow-[0_22px_60px_rgba(15,40,75,0.10)] sm:min-h-[500px] lg:min-h-[560px]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,#F4F8FF_0,#FFFFFF_38%,transparent_70%)]" />
+            <div className="absolute left-0 top-[34%] h-[42%] w-[58%] rounded-[50%] bg-[#F3F7FF]" />
+            <div className="absolute -bottom-28 -left-20 h-72 w-[62%] rounded-[50%] bg-[#FF7A00]" />
+            <div className="absolute -bottom-20 left-8 h-60 w-[48%] rounded-[50%] bg-[#FFB763]" />
+            <div className="absolute -bottom-24 right-[-8%] h-72 w-[58%] rounded-[50%] bg-[#0057D9]" />
+            <div className="absolute -bottom-14 right-6 h-48 w-[42%] rounded-[50%] bg-[#0E7BFF]" />
+            <div className="absolute -right-16 -top-10 h-48 w-48 rounded-full bg-[#FF7A00]" />
+            <div className="absolute left-[58%] -top-20 h-40 w-40 rounded-full bg-[#BBD7FF]" />
+            <div className="absolute right-[5%] top-[12%] h-64 w-64 rounded-full border border-[#DCE8F7]" />
+            <div className="absolute right-[7%] top-[16%] h-48 w-48 rounded-full border border-[#DCE8F7]" />
+            <div className="absolute right-[9%] top-[20%] h-32 w-32 rounded-full border border-[#DCE8F7]" />
+
+            <div className="absolute left-7 top-8 grid grid-cols-6 gap-3 sm:left-10 sm:top-12">
+              {Array.from({ length: 30 }).map((_, index) => (
+                <span key={index} className="h-1.5 w-1.5 rounded-full bg-[#9EC2F5]" />
+              ))}
+            </div>
+            <div className="absolute bottom-24 right-8 grid grid-cols-4 gap-3">
+              {Array.from({ length: 16 }).map((_, index) => (
+                <span key={index} className="h-1.5 w-1.5 rounded-full bg-[#FF9A45]" />
+              ))}
+            </div>
+
+            <div className="relative z-10 grid min-h-[430px] items-center gap-8 px-6 py-12 sm:min-h-[500px] sm:px-12 lg:min-h-[560px] lg:grid-cols-[1fr_360px] lg:px-20">
+              <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
+                <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center lg:justify-start">
+                  <div className="relative h-28 w-28 shrink-0 rounded-full bg-[radial-gradient(circle_at_35%_28%,#BDF5FF_0,#00AEEF_42%,#0057D9_100%)] shadow-[0_18px_40px_rgba(0,87,217,0.20)]">
+                    <span className="absolute left-3 right-3 top-8 h-2 rotate-[-10deg] rounded-full bg-[#071A33]" />
+                    <span className="absolute left-5 right-4 top-14 h-2 rotate-[-10deg] rounded-full bg-[#071A33]" />
+                    <span className="absolute left-2 top-8 h-24 w-28 rotate-[-18deg] rounded-[50%] border-[10px] border-[#FF7A00] border-t-transparent" />
+                    <span className="absolute -bottom-1 left-4 h-5 w-20 rounded-[50%] bg-black/10 blur-sm" />
+                  </div>
+
+                  <div>
+                    <h1 className="text-[46px] font-black leading-[0.9] tracking-[-0.03em] text-[#071A33] sm:text-[64px] lg:text-[74px]">
+                      CLICK.COM
+                      <span className="block text-[#FF6B00]">DEL CARIBE</span>
+                    </h1>
+                    <p className="mt-5 text-lg font-bold text-[#1F3354] sm:text-xl">
+                      Soluciones tecnologicas que impulsan tu mundo
+                    </p>
+                    <span className="mx-auto mt-4 block h-1 w-24 rounded-full bg-[#0057D9] lg:mx-0" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative mx-auto hidden h-[330px] w-[280px] lg:block">
+                <div className="absolute left-1/2 top-8 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_35%_28%,#E8FCFF_0,#43D7FF_42%,#008CE5_100%)] shadow-[0_18px_40px_rgba(0,87,217,0.22)]">
+                  <span className="absolute left-8 top-16 h-3 w-8 rounded-full border-t-4 border-[#071A33]" />
+                  <span className="absolute right-8 top-14 h-9 w-7 rounded-full bg-white ring-4 ring-[#071A33]">
+                    <span className="absolute left-2 top-2 h-3 w-3 rounded-full bg-[#071A33]" />
+                  </span>
+                  <span className="absolute bottom-9 left-1/2 h-9 w-16 -translate-x-1/2 rounded-b-full bg-[#FF6B6B] ring-4 ring-[#071A33]" />
+                  <span className="absolute left-4 top-8 h-2 w-32 rotate-[-10deg] rounded-full bg-[#071A33]" />
+                  <span className="absolute left-2 top-20 h-2 w-36 rotate-[8deg] rounded-full bg-[#071A33]" />
+                </div>
+                <div className="absolute left-[70px] top-[178px] h-24 w-36 rounded-[36px] bg-[#FF7A00] shadow-[0_16px_35px_rgba(255,107,0,0.25)]" />
+                <div className="absolute left-[88px] top-[190px] h-28 w-24 rounded-[30px] bg-white ring-4 ring-[#071A33]" />
+                <div className="absolute left-[35px] top-[120px] h-16 w-16 rotate-[-24deg] rounded-full bg-white ring-4 ring-[#071A33]" />
+                <div className="absolute right-[28px] top-[118px] h-16 w-16 rotate-[24deg] rounded-full bg-white ring-4 ring-[#071A33]" />
+                <div className="absolute bottom-8 left-[86px] h-20 w-9 rotate-[16deg] rounded-full bg-[#071A33]" />
+                <div className="absolute bottom-10 right-[82px] h-20 w-9 rotate-[-16deg] rounded-full bg-[#071A33]" />
+                <div className="absolute bottom-2 left-[84px] h-9 w-16 rounded-full bg-[#FF7A00] ring-4 ring-[#071A33]" />
+                <div className="absolute bottom-4 right-[60px] h-9 w-16 rounded-full bg-[#FF7A00] ring-4 ring-[#071A33]" />
+                <div className="absolute -right-2 top-[190px] h-28 w-20 rotate-[28deg] rounded-[50%] bg-[#FF7A00]" />
+              </div>
+            </div>
           </div>
         </div>
 
