@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { getToken } from "@/lib/authStorage";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import FormSection from "@/components/admin/FormSection";
 import InputField from "@/components/admin/InputField";
@@ -25,13 +25,13 @@ const BRAND_OPTIONS = [
   "Dell", "Epson", "Gateway", "Gigabyte", "HP", "Huawei", "Intel", "Kingston",
   "Lenovo", "LG", "Logitech", "Microsoft", "MSI", "Qian", "Samsung", "Seagate",
   "Sony", "Toshiba", "Ubiquiti", "Xerox", "Otro"
-];
+].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
 const SERVICE_TECHS = [
   { value: "humberto", label: "Humberto" },
   { value: "milton", label: "Milton" },
   { value: "christian", label: "Christian" },
-];
+].sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
 
 const CONTACT_CHANNELS = [
   { value: "whatsapp", label: "WhatsApp" },
@@ -84,6 +84,31 @@ const GUARANTEE_OPTIONS = [
   { value: "no", label: "No aplica" },
 ];
 
+const DEFAULT_REPAIR_OPTIONS = {
+  tiposEquipo: DEVICE_TYPES,
+  marcas: BRAND_OPTIONS,
+  tecnicos: SERVICE_TECHS,
+  canalesContacto: CONTACT_CHANNELS,
+  metodosAutorizacion: AUTHORIZATION_METHODS,
+  accesorios: ACCESSORIES,
+  condicionesFisicas: PHYSICAL_CONDITIONS,
+  metodosPago: PAYMENT_METHODS,
+  garantia: GUARANTEE_OPTIONS,
+};
+
+function normalizeOptions(items, fallback = []) {
+  const source = Array.isArray(items) && items.length ? items : fallback;
+  return source
+    .map((item) => {
+      if (typeof item === "string") return { value: item, label: item };
+      const label = item?.label || item?.nombre || item?.value || "";
+      const value = item?.value || item?.id || label;
+      return label && value ? { ...item, value, id: item.id || value, label } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
+}
+
 function createInitialState() {
   return {
     clientName: "",
@@ -93,6 +118,7 @@ function createInitialState() {
     deviceType: "",
     deviceOther: "",
     brand: "",
+    brandOther: "",
     model: "",
     serialNumber: "",
     problem: "",
@@ -191,6 +217,144 @@ function TextAreaField({ id, label, value, onChange, placeholder, required, erro
   );
 }
 
+function SearchableChoiceField({
+  id,
+  label,
+  value,
+  onChange,
+  options = [],
+  placeholder = "Buscar...",
+  required = false,
+  error,
+  allowCustom = false,
+  customLabel = "Otro",
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const normalizedOptions = options.map((option) =>
+    typeof option === "string" ? { value: option, label: option } : option
+  );
+  const selected = normalizedOptions.find((option) => option.value === value);
+  const displayValue = selected?.label || value || "";
+  const filtered = normalizedOptions
+    .filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
+
+  const selectValue = (nextValue) => {
+    onChange({ target: { value: nextValue } });
+    setQuery("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
+        {label}
+        {required && <span className="text-[#b91c1c]">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type="text"
+          value={open ? query : displayValue}
+          onFocus={() => {
+            setOpen(true);
+            setQuery("");
+          }}
+          onBlur={() => {
+            window.setTimeout(() => setOpen(false), 120);
+          }}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+            if (allowCustom) onChange({ target: { value: event.target.value } });
+          }}
+          placeholder={placeholder}
+          required={required}
+          className={`w-full rounded-md border bg-white py-2 pl-3 pr-10 text-sm leading-5 text-[#111827] outline-none transition-colors placeholder:text-[#9ca3af] ${
+            error ? "border-red-300 focus:border-red-500" : "border-[#d1d5db] focus:border-[#2563eb]"
+          }`}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-[#526174] hover:bg-[#eef2f7]"
+          aria-label="Abrir opciones"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+        {open && (
+          <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border border-[#d1d5db] bg-white py-1 shadow-lg">
+            {filtered.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectValue(option.value)}
+                className={`block w-full px-3 py-2 text-left text-sm font-medium hover:bg-[#eef6ff] ${
+                  value === option.value ? "bg-[#2563eb] text-white hover:bg-[#2563eb]" : "text-[#111827]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+            {allowCustom && query.trim() && !filtered.some((option) => option.label.toLowerCase() === query.trim().toLowerCase()) && (
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectValue(query.trim())}
+                className="block w-full border-t border-[#e5e7eb] px-3 py-2 text-left text-sm font-semibold text-[#0b6ea8] hover:bg-[#eef6ff]"
+              >
+                Usar "{query.trim()}"
+              </button>
+            )}
+            {allowCustom && (
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectValue(customLabel)}
+                className="block w-full border-t border-[#e5e7eb] px-3 py-2 text-left text-sm font-semibold text-[#374151] hover:bg-[#f8fafc]"
+              >
+                {customLabel}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {error && <p className="text-xs font-medium text-[#b91c1c]">{error}</p>}
+    </div>
+  );
+}
+
+function PasswordVisibleField({ id, label, value, onChange, placeholder }) {
+  const [visible, setVisible] = useState(true);
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="flex items-center gap-1 text-xs font-semibold text-[#374151]">{label}</label>
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+          className="w-full rounded-md border border-[#d1d5db] bg-white py-2 pl-3 pr-20 text-sm leading-5 text-[#111827] outline-none transition-colors placeholder:text-[#9ca3af] focus:border-[#2563eb]"
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((current) => !current)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#d1d5db] bg-white px-2 py-1 text-xs font-semibold text-[#374151] hover:bg-[#f3f4f6]"
+        >
+          {visible ? "Ocultar" : "Ver"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PhotoDropPreview({ files, onChange }) {
   return (
     <div className="rounded-2xl border border-dashed border-[#BFD0DF] bg-[#F8FBFD] p-4">
@@ -229,6 +393,17 @@ export default function NewRepairForm() {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdRepair, setCreatedRepair] = useState(null);
+  const [repairOptions, setRepairOptions] = useState(DEFAULT_REPAIR_OPTIONS);
+
+  const deviceTypeOptions = useMemo(() => normalizeOptions(repairOptions.tiposEquipo, DEVICE_TYPES), [repairOptions.tiposEquipo]);
+  const brandOptions = useMemo(() => normalizeOptions(repairOptions.marcas, BRAND_OPTIONS), [repairOptions.marcas]);
+  const techOptions = useMemo(() => normalizeOptions(repairOptions.tecnicos, SERVICE_TECHS), [repairOptions.tecnicos]);
+  const contactChannelOptions = useMemo(() => normalizeOptions(repairOptions.canalesContacto, CONTACT_CHANNELS), [repairOptions.canalesContacto]);
+  const authorizationOptions = useMemo(() => normalizeOptions(repairOptions.metodosAutorizacion, AUTHORIZATION_METHODS), [repairOptions.metodosAutorizacion]);
+  const accessoryOptions = useMemo(() => normalizeOptions(repairOptions.accesorios, ACCESSORIES), [repairOptions.accesorios]);
+  const conditionOptions = useMemo(() => normalizeOptions(repairOptions.condicionesFisicas, PHYSICAL_CONDITIONS), [repairOptions.condicionesFisicas]);
+  const paymentOptions = useMemo(() => normalizeOptions(repairOptions.metodosPago, PAYMENT_METHODS), [repairOptions.metodosPago]);
+  const guaranteeOptions = useMemo(() => normalizeOptions(repairOptions.garantia, GUARANTEE_OPTIONS), [repairOptions.garantia]);
 
   const toNumber = (value) => Number(String(value || "").replace(/[^0-9.]/g, "")) || 0;
   const serviceCostNumber = toNumber(form.serviceCost);
@@ -236,13 +411,58 @@ export default function NewRepairForm() {
   const advanceNumber = hasAdvance ? toNumber(form.advanceAmount) : 0;
   const balanceDue = Math.max(serviceCostNumber - advanceNumber, 0);
   const advanceExceedsCost = hasAdvance && serviceCostNumber > 0 && advanceNumber > serviceCostNumber;
-  const canUseWhatsapp = form.contactChannel === "whatsapp" || form.contactChannel === "ambos";
-  const canUseEmail = form.contactChannel === "gmail" || form.contactChannel === "ambos";
+  const contactText = String(contactChannelOptions.find((item) => item.value === form.contactChannel)?.label || form.contactChannel).toLowerCase();
+  const canUseWhatsapp = contactText.includes("whatsapp") || contactText.includes("ambos");
+  const canUseEmail = contactText.includes("gmail") || contactText.includes("correo") || contactText.includes("ambos");
+  const warrantyText = String(guaranteeOptions.find((item) => item.value === form.warrantyApplies)?.label || form.warrantyApplies).toLowerCase();
+  const warrantyDisabled = warrantyText.includes("no");
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadOptions() {
+      try {
+        const token = getToken();
+        if (!token) return;
+        const configResponse = await fetch(`${API_URL}/api/configuracion/opciones_reparacion`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          if (!ignore && configData?.datos && Object.keys(configData.datos).length > 0) {
+            setRepairOptions((current) => ({ ...current, ...configData.datos }));
+          }
+        }
+
+        const response = await fetch(`${API_URL}/api/usuarios`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        const users = Array.isArray(data.usuarios) ? data.usuarios : [];
+        const next = users
+          .filter((user) => user.activo !== false && ["tecnico", "admin", "gerencia"].includes(String(user.rol || "").toLowerCase()))
+          .map((user) => ({ value: user.nombre || user.usuario, label: user.nombre || user.usuario }))
+          .filter((item) => item.value);
+        if (!ignore && next.length > 0) {
+          setRepairOptions((current) => ({ ...current, tecnicos: next }));
+        }
+      } catch {}
+    }
+    loadOptions();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const deviceLabel = useMemo(() => {
     if (form.deviceType === "otro") return form.deviceOther.trim() || "Otro equipo";
-    return DEVICE_TYPES.find((item) => item.value === form.deviceType)?.label || "Equipo";
-  }, [form.deviceOther, form.deviceType]);
+    return deviceTypeOptions.find((item) => item.value === form.deviceType)?.label || "Equipo";
+  }, [deviceTypeOptions, form.deviceOther, form.deviceType]);
+
+  const brandLabel = useMemo(() => {
+    if (form.brand === "Otro") return form.brandOther.trim();
+    return form.brand.trim();
+  }, [form.brand, form.brandOther]);
 
   const set = (field) => (event) => {
     const value = event.target.value;
@@ -269,6 +489,9 @@ export default function NewRepairForm() {
       }
       if (field === "deviceType" && value !== "otro") {
         next.deviceOther = "";
+      }
+      if (field === "brand" && value !== "Otro") {
+        next.brandOther = "";
       }
       return next;
     });
@@ -326,6 +549,7 @@ export default function NewRepairForm() {
     if (!form.deviceType) newErrors.deviceType = "Selecciona un tipo de equipo";
     if (form.deviceType === "otro" && !form.deviceOther.trim()) newErrors.deviceOther = "Escribe qué tipo de equipo es";
     if (!form.brand.trim()) newErrors.brand = "La marca es requerida";
+    if (form.brand === "Otro" && !form.brandOther.trim()) newErrors.brandOther = "Escribe la marca del equipo";
     if (!form.model.trim()) newErrors.model = "El modelo es requerido";
     if (!form.problem.trim()) newErrors.problem = "Describe el problema reportado";
     if (!form.receivedBy.trim()) newErrors.receivedBy = "Indica quién recibió el equipo";
@@ -352,7 +576,7 @@ export default function NewRepairForm() {
       },
       equipo: {
         tipo: deviceLabel,
-        marca: sanitizeText(form.brand, 80),
+        marca: sanitizeText(brandLabel, 80),
         modelo: sanitizeText(form.model, 100),
         serie: sanitizeText(form.serialNumber, 80),
         passwordEquipo: form.devicePassword.trim(),
@@ -414,7 +638,7 @@ export default function NewRepairForm() {
         clientPhone: repair.cliente?.telefono || form.clientPhone,
         clientEmail: repair.cliente?.correo || form.clientEmail,
         contactChannel: form.contactChannel,
-        device: `${repair.equipo?.tipo || deviceLabel} ${repair.equipo?.marca || form.brand} ${repair.equipo?.modelo || form.model}`.trim(),
+        device: `${repair.equipo?.tipo || deviceLabel} ${repair.equipo?.marca || brandLabel} ${repair.equipo?.modelo || form.model}`.trim(),
         tech: repair.tecnico || form.tech,
         receivedBy: form.receivedBy,
         entryTime: form.entryTime,
@@ -522,11 +746,11 @@ export default function NewRepairForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-5xl space-y-5">
+    <form onSubmit={handleSubmit} className="w-full max-w-5xl space-y-5">
       <FormSection title="Datos del cliente" description="Información de contacto para ligar el folio al historial del cliente">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <InputField id="client-name" label="Nombre del cliente" placeholder="Nombre completo del cliente" value={form.clientName} onChange={set("clientName")} required error={errors.clientName} />
-          <SelectField id="contact-channel" label="Canal de envío" value={form.contactChannel} onChange={set("contactChannel")} options={CONTACT_CHANNELS} required />
+          <SelectField id="contact-channel" label="Canal de envío" value={form.contactChannel} onChange={set("contactChannel")} options={contactChannelOptions} required />
           <InputField id="client-phone" label="Teléfono" type="tel" placeholder="Ej: 984 123 4567" value={form.clientPhone} onChange={set("clientPhone")} required={canUseWhatsapp} error={errors.clientPhone} />
           <InputField id="client-email" label="Correo electrónico" type="email" placeholder="Ej: cliente@email.com" value={form.clientEmail} onChange={set("clientEmail")} required={canUseEmail} error={errors.clientEmail} />
         </div>
@@ -534,11 +758,11 @@ export default function NewRepairForm() {
 
       <FormSection title="Datos del equipo" description="Información técnica mínima para identificar el dispositivo sin repetir capturas">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <SelectField id="device-type" label="Tipo de equipo" value={form.deviceType} onChange={set("deviceType")} options={DEVICE_TYPES} placeholder="Seleccionar tipo..." required error={errors.deviceType} />
+          <SelectField id="device-type" label="Tipo de equipo" value={form.deviceType} onChange={set("deviceType")} options={deviceTypeOptions} placeholder="Seleccionar tipo..." required error={errors.deviceType} />
           {form.deviceType === "otro" && (
             <InputField id="device-other" label="Especificar equipo" placeholder="Ej: monitor, proyector, punto de venta" value={form.deviceOther} onChange={set("deviceOther")} required error={errors.deviceOther} />
           )}
-          <InputField
+          <SearchableChoiceField
             id="device-brand"
             label="Marca"
             placeholder="Busca o escribe la marca"
@@ -546,13 +770,21 @@ export default function NewRepairForm() {
             onChange={set("brand")}
             required
             error={errors.brand}
-            list="brand-options"
+            options={brandOptions}
+            allowCustom
+            customLabel="Otro"
           />
-          <datalist id="brand-options">
-            {BRAND_OPTIONS.map((brand) => (
-              <option key={brand} value={brand} />
-            ))}
-          </datalist>
+          {form.brand === "Otro" && (
+            <InputField
+              id="brand-other"
+              label="Especificar marca"
+              placeholder="Escribe la marca del equipo"
+              value={form.brandOther}
+              onChange={set("brandOther")}
+              required
+              error={errors.brandOther}
+            />
+          )}
           <InputField id="device-model" label="Modelo" placeholder="Ej: Inspiron 15 3520" value={form.model} onChange={set("model")} required error={errors.model} />
           <InputField id="device-serial" label="Número de serie" placeholder="Ej: SN-XXXXX-XXXXX" value={form.serialNumber} onChange={set("serialNumber")} />
         </div>
@@ -567,13 +799,13 @@ export default function NewRepairForm() {
           <InputField id="received-by" label="Recibió el equipo" placeholder="Ej: Ericka" value={form.receivedBy} onChange={set("receivedBy")} required error={errors.receivedBy} />
           <InputField id="entry-time" label="Hora de entrada" type="time" value={form.entryTime} onChange={set("entryTime")} />
           <InputField id="authorized-by" label="Autoriza servicio" placeholder="Nombre de quien autoriza" value={form.authorizedBy} onChange={set("authorizedBy")} />
-          <SelectField id="authorization-method" label="Medio de autorización" value={form.authorizationMethod} onChange={set("authorizationMethod")} options={AUTHORIZATION_METHODS} />
-          <SelectField
+          <SelectField id="authorization-method" label="Medio de autorización" value={form.authorizationMethod} onChange={set("authorizationMethod")} options={authorizationOptions} />
+          <SearchableChoiceField
             id="repair-tech"
             label="Encargado del servicio"
             value={form.tech}
             onChange={set("tech")}
-            options={SERVICE_TECHS}
+            options={techOptions}
             placeholder="Seleccionar encargado..."
             required
             error={errors.tech}
@@ -583,7 +815,7 @@ export default function NewRepairForm() {
 
       <FormSection title="Estado físico y evidencia" description="Selecciona lo visible al recibir y agrega fotos para evitar reclamos posteriores.">
         <div className="flex flex-wrap gap-3">
-          {PHYSICAL_CONDITIONS.map((item) => (
+          {conditionOptions.map((item) => (
             <CheckChip key={item.id} id={`condition-${item.id}`} label={item.label} checked={form.physicalConditions.includes(item.id)} onChange={() => toggleList("physicalConditions", item.id)} />
           ))}
         </div>
@@ -595,7 +827,7 @@ export default function NewRepairForm() {
 
       <FormSection title="Accesorios recibidos" description="Elementos entregados junto con el equipo">
         <div className="flex flex-wrap gap-3">
-          {ACCESSORIES.map((item) => (
+          {accessoryOptions.map((item) => (
             <CheckChip key={item.id} id={`accessory-${item.id}`} label={item.label} checked={form.accessories.includes(item.id)} onChange={() => toggleList("accessories", item.id)} />
           ))}
         </div>
@@ -617,7 +849,7 @@ export default function NewRepairForm() {
             <InputField id="service-cost" label="Costo del servicio" type="number" min="0" step="0.01" placeholder="Ej: 1200.00" value={form.serviceCost} onChange={set("serviceCost")} light />
             <SelectField id="gave-advance" label="Dio anticipo" value={form.gaveAdvance} onChange={set("gaveAdvance")} options={YES_NO_OPTIONS} light />
             <InputField id="advance-amount" label="Monto de anticipo" type="number" min="0" step="0.01" placeholder="Ej: 500.00" value={form.advanceAmount} onChange={setAdvanceAmount} disabled={!hasAdvance} required={hasAdvance} error={errors.advanceAmount} max={form.serviceCost || undefined} light />
-            <SelectField id="payment-method" label="Cómo se pagó" value={form.paymentMethod} onChange={set("paymentMethod")} options={PAYMENT_METHODS} disabled={!hasAdvance} light />
+            <SelectField id="payment-method" label="Cómo se pagó" value={form.paymentMethod} onChange={set("paymentMethod")} options={paymentOptions} disabled={!hasAdvance} light />
             <SelectField id="invoice-required" label="Factura" value={form.invoiceRequired} onChange={set("invoiceRequired")} options={YES_NO_OPTIONS} light />
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]">
@@ -633,11 +865,11 @@ export default function NewRepairForm() {
 
       <FormSection title="Garantía e información adicional" description="Datos que ayudan al técnico, a la entrega y al cierre del folio">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <InputField id="device-password" label="Contraseña del equipo" type="password" placeholder="Opcional" value={form.devicePassword} onChange={set("devicePassword")} />
+          <PasswordVisibleField id="device-password" label="Contraseña del equipo" placeholder="Opcional" value={form.devicePassword} onChange={set("devicePassword")} />
           <InputField id="date-in" label="Fecha de ingreso" type="date" value={form.dateIn} onChange={set("dateIn")} required />
           <InputField id="date-estimated" label="Fecha entrega estimada" type="date" value={form.dateEstimated} onChange={set("dateEstimated")} />
-          <SelectField id="warranty-applies" label="Garantía" value={form.warrantyApplies} onChange={set("warrantyApplies")} options={GUARANTEE_OPTIONS} />
-          <InputField id="warranty-days" label="Días de garantía" type="number" min="0" placeholder="Ej: 7" value={form.warrantyDays} onChange={set("warrantyDays")} disabled={form.warrantyApplies === "no"} />
+          <SelectField id="warranty-applies" label="Garantía" value={form.warrantyApplies} onChange={set("warrantyApplies")} options={guaranteeOptions} />
+          <InputField id="warranty-days" label="Días de garantía" type="number" min="0" placeholder="Ej: 7" value={form.warrantyDays} onChange={set("warrantyDays")} disabled={warrantyDisabled} />
           <InputField id="warranty-notes" label="Nota de garantía" placeholder="Ej: no aplica por software" value={form.warrantyNotes} onChange={set("warrantyNotes")} />
         </div>
       </FormSection>

@@ -264,6 +264,12 @@ export default function ConfiguracionPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
+        <Link href="/admin/configuracion/opciones" className="group rounded-[18px] border border-[#bfd4e3] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#334155] hover:shadow-lg">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b75a5]">Catálogos</p>
+          <h3 className="mt-3 text-lg font-bold text-[#08172a]">Opciones de reparación</h3>
+          <p className="mt-2 text-sm leading-6 text-[#40546d]">Edita marcas, tipos de equipo, accesorios, condiciones, métodos de pago y opciones usadas en la recepción.</p>
+          <span className="mt-4 inline-flex rounded-xl bg-[#eef2f7] px-4 py-2 text-sm font-bold text-[#334155] group-hover:bg-[#e2e8f0]">Editar opciones</span>
+        </Link>
         <Link href="/admin/configuracion/publica" className="group rounded-[18px] border border-[#bfd4e3] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#0aa7df] hover:shadow-lg">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b75a5]">Contenido</p>
           <h3 className="mt-3 text-lg font-bold text-[#08172a]">Página de clientes</h3>

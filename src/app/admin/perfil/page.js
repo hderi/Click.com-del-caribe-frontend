@@ -74,7 +74,7 @@ export default function PerfilPage() {
       <form onSubmit={guardarPerfil} className="rounded-[24px] border border-[#C9D8E5] bg-white p-6 shadow-[0_12px_28px_rgba(15,23,42,0.07)]">
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-black text-[#102033]">Datos de acceso</h2>
-          <p className="text-sm font-semibold text-[#526174]">No se muestran contraseñas guardadas. Solo se permite cambiarla.</p>
+          <p className="text-sm font-semibold text-[#526174]">Las contraseñas guardadas están protegidas. Puedes ver u ocultar lo que escribes antes de guardar.</p>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -96,15 +96,28 @@ export default function PerfilPage() {
 }
 
 function Field({ label, value, onChange, type = "text" }) {
+  const [visible, setVisible] = useState(false);
+  const isPassword = type === "password";
   return (
     <div>
       <label className="text-xs font-black uppercase tracking-[0.12em] text-[#526174]">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl border border-[#C8D6E3] bg-white px-3 py-3 text-sm font-bold text-[#102033] outline-none focus:border-[#00A8E8] focus:ring-4 focus:ring-[#DDF3FB]"
-      />
+      <div className="relative mt-1">
+        <input
+          type={isPassword && visible ? "text" : type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-xl border border-[#C8D6E3] bg-white px-3 py-3 text-sm font-bold text-[#102033] outline-none focus:border-[#00A8E8] focus:ring-4 focus:ring-[#DDF3FB] ${isPassword ? "pr-24" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setVisible((current) => !current)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[#C8D6E3] bg-white px-3 py-1.5 text-xs font-black text-[#334155] hover:bg-[#EEF5FA]"
+          >
+            {visible ? "Ocultar" : "Ver"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
