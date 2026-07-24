@@ -137,7 +137,7 @@ function createInitialState() {
     dateIn: todayLocalInput(),
     dateEstimated: "",
     warrantyApplies: "no",
-    warrantyDays: "7",
+    warrantyDays: "",
     warrantyNotes: "",
     serviceCost: "",
     gaveAdvance: "no",
@@ -495,7 +495,7 @@ export default function NewRepairForm() {
   }, [form.brand, form.brandOther]);
 
   const set = (field) => (event) => {
-    const value = event.target.value;
+    const value = field === "warrantyDays" ? event.target.value.replace(/\D/g, "") : event.target.value;
     if (field === "dateIn" && value) {
       const today = new Date().toISOString().slice(0, 10);
       if (value < today && typeof window !== "undefined") {
@@ -522,6 +522,10 @@ export default function NewRepairForm() {
       }
       if (field === "brand" && value !== "Otro") {
         next.brandOther = "";
+      }
+      if (field === "warrantyApplies") {
+        next.warrantyDays = value === "si" ? (next.warrantyDays || "7") : "";
+        next.warrantyNotes = value === "si" ? next.warrantyNotes : "";
       }
       return next;
     });
@@ -665,11 +669,6 @@ export default function NewRepairForm() {
       const trackingUrl = /^https?:\/\//i.test(rawTrackingPath)
         ? rawTrackingPath
         : (typeof window !== "undefined" ? `${window.location.origin}${rawTrackingPath.startsWith("/") ? rawTrackingPath : `/${rawTrackingPath}`}` : rawTrackingPath);
-      const rawReceiptPath = data.mensaje?.receiptLink || `/admin/reparaciones/${repair.folio}/recibo-digital`;
-      const receiptUrl = /^https?:\/\//i.test(rawReceiptPath)
-        ? rawReceiptPath
-        : (typeof window !== "undefined" ? `${window.location.origin}${rawReceiptPath.startsWith("/") ? rawReceiptPath : `/${rawReceiptPath}`}` : rawReceiptPath);
-
       setCreatedRepair({
         folio: repair.folio,
         clientName: repair.cliente?.nombre || form.clientName,
@@ -682,7 +681,6 @@ export default function NewRepairForm() {
         entryTime: form.entryTime,
         balanceDue: repair.pago?.saldoPendiente ?? balanceDue,
         trackingUrl,
-        receiptUrl,
       });
     } catch (error) {
       setErrors((prev) => ({ ...prev, form: error.message }));
@@ -693,13 +691,13 @@ export default function NewRepairForm() {
 
   if (createdRepair) {
     const whatsappText = encodeURIComponent(
-      `Hola ${createdRepair.clientName}, tu equipo fue registrado con el folio ${createdRepair.folio}.\n\nPuedes consultar el seguimiento aqui:\n${createdRepair.trackingUrl}\n\nTambien puedes consultar tu recibo digital con las politicas de servicio aqui:\n${createdRepair.receiptUrl}`
+      `Hola ${createdRepair.clientName}, tu equipo fue registrado con el folio ${createdRepair.folio}. Puedes consultar el seguimiento aqui: ${createdRepair.trackingUrl}`
     );
     const cleanPhone = String(createdRepair.clientPhone || "").replace(/\D/g, "");
     const whatsappUrl = cleanPhone ? `https://wa.me/52${cleanPhone}?text=${whatsappText}` : "";
     const mailSubject = encodeURIComponent(`Seguimiento de reparación ${createdRepair.folio}`);
     const mailBody = encodeURIComponent(
-      `Hola ${createdRepair.clientName},\n\nTu equipo fue registrado en CLICK.COM del Caribe con el folio ${createdRepair.folio}.\n\nPuedes consultar el seguimiento aqui:\n${createdRepair.trackingUrl}\n\nTambien puedes consultar tu recibo digital con las politicas de servicio aqui:\n${createdRepair.receiptUrl}\n\nCLICK.COM del Caribe`
+      `Hola ${createdRepair.clientName},\n\nTu equipo fue registrado en CLICK.COM del Caribe con el folio ${createdRepair.folio}.\nPuedes consultar el seguimiento aqui:\n${createdRepair.trackingUrl}\n\nCLICK.COM del Caribe`
     );
     const canSendWhatsapp = Boolean(cleanPhone);
     const copyTrackingLink = async () => {
@@ -772,7 +770,7 @@ export default function NewRepairForm() {
               {showWhatsapp && showEmail && (
                 <p className="rounded-2xl border border-[#D5E2EC] bg-[#F8FBFD] px-4 py-3 text-xs font-bold leading-5 text-[#526174]">Usa ambos botones para dejar constancia por WhatsApp y correo.</p>
               )}
-              <button type="button" onClick={() => router.push(`/admin/reparaciones/${createdRepair.folio}?print=1`)} className="rounded-2xl border border-[#F0C391] bg-[#FFF1E3] px-5 py-3 text-sm font-black text-[#B45309] transition hover:bg-[#FFE4C4]">Imprimir ficha completa</button>
+              <button type="button" onClick={() => router.push(`/admin/reparaciones/${createdRepair.folio}/recibo?print=1`)} className="rounded-2xl border border-[#F0C391] bg-[#FFF1E3] px-5 py-3 text-sm font-black text-[#B45309] transition hover:bg-[#FFE4C4]">Imprimir recibo</button>
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => router.push("/admin/reparaciones")} className="rounded-2xl border border-[#C9D8E5] bg-[#EEF5FA] px-4 py-3 text-sm font-black text-[#334155] transition hover:bg-white">Ver listado</button>
                 <button type="button" onClick={() => { setForm(createInitialState()); setCreatedRepair(null); }} className="rounded-2xl border border-[#C9D8E5] bg-[#EEF5FA] px-4 py-3 text-sm font-black text-[#334155] transition hover:bg-white">Nueva orden</button>
@@ -942,7 +940,7 @@ export default function NewRepairForm() {
           <InputField id="date-in" label="Fecha de ingreso" type="date" value={form.dateIn} onChange={set("dateIn")} required />
           <InputField id="date-estimated" label="Fecha entrega estimada" type="date" value={form.dateEstimated} onChange={set("dateEstimated")} />
           <SelectField id="warranty-applies" label="Garantía" value={form.warrantyApplies} onChange={set("warrantyApplies")} options={guaranteeOptions} />
-          <InputField id="warranty-days" label="Días de garantía" type="number" min="0" placeholder="Ej: 7" value={form.warrantyDays} onChange={set("warrantyDays")} disabled={warrantyDisabled} />
+          <InputField id="warranty-days" label="Días de garantía" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="" value={form.warrantyDays} onChange={set("warrantyDays")} disabled={warrantyDisabled} />
           <InputField id="warranty-notes" label="Nota de garantía" placeholder="" value={form.warrantyNotes} onChange={set("warrantyNotes")} />
         </div>
       </FormSection>

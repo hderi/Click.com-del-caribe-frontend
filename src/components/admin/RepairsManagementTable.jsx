@@ -13,7 +13,6 @@ const statusLabels = {
   esperando_refaccion: "Esperando refaccion",
   finalizado: "Listo para entrega",
   entregado: "Entregado",
-  cancelado: "Cancelado",
 };
 
 const statusClasses = {
@@ -23,7 +22,6 @@ const statusClasses = {
   esperando_refaccion: "bg-[#FFF7D8] text-[#8A6500] border-[#E4CA71]",
   finalizado: "bg-[#E8F8EF] text-[#15803D] border-[#B9E8CD]",
   entregado: "bg-[#E9F0F6] text-[#526174] border-[#C9D8E5]",
-  cancelado: "bg-[#FFF1F2] text-[#BE123C] border-[#FDA4AF]",
 };
 
 const lastMoveByStatus = {
@@ -33,10 +31,9 @@ const lastMoveByStatus = {
   esperando_refaccion: "Espera pieza o autorizacion",
   finalizado: "Cliente por recoger",
   entregado: "Cerrado",
-  cancelado: "Cancelado con observacion",
 };
 
-const CLOSED_STATUSES = new Set(["entregado", "cancelado"]);
+const CLOSED_STATUSES = new Set(["entregado"]);
 
 function StatusPill({ status }) {
   return (
@@ -57,6 +54,15 @@ async function getMessage(folio, type) {
   return data;
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function WhatsAppIcon() {
   return (
     <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -75,6 +81,7 @@ function MailIcon() {
 
 export default function RepairsManagementTable({ repairs, statusFilter = "todos", onStatusFilterChange = () => {}, statusOptions = [] }) {
   const [openDocsMenu, setOpenDocsMenu] = useState("");
+  const [uploadingReceipt, setUploadingReceipt] = useState("");
 
   async function openMessage(folio, type) {
     try {
@@ -83,6 +90,39 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       alert(err.message || "No se pudo abrir el mensaje");
+    }
+  }
+
+  async function uploadSignedReceipt(repair, event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploadingReceipt(repair.folio);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const token = getToken();
+      const response = await fetch(`${API_URL}/api/reparaciones/${encodeURIComponent(repair.folio)}/recibo-firmado`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          reciboFirmado: {
+            nombre: file.name,
+            name: file.name,
+            size: file.size,
+            lastModified: file.lastModified,
+            dataUrl,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo subir el recibo firmado");
+      alert("Recibo firmado guardado.");
+      window.location.reload();
+    } catch (err) {
+      alert(err.message || "No se pudo subir el recibo firmado");
+    } finally {
+      setUploadingReceipt("");
+      setOpenDocsMenu("");
     }
   }
 
@@ -204,9 +244,18 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
                           <Link className="block px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" href={`/admin/reparaciones/${repair.folio}/recibo`} onClick={() => setOpenDocsMenu("")}>
                             Ver recibo
                           </Link>
-                          <button type="button" className="block w-full px-3 py-2 text-left text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" onClick={() => setOpenDocsMenu("")}>
-                            Subir recibo firmado
-                          </button>
+                          <Link className="block px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" href={`/admin/reparaciones/${repair.folio}/recibo-digital`} onClick={() => setOpenDocsMenu("")}>
+                            Descargar PDF
+                          </Link>
+                          <label className="block cursor-pointer px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]">
+                            {uploadingReceipt === repair.folio ? "Subiendo..." : "Subir recibo firmado"}
+                            <input type="file" accept="image/*" className="hidden" onChange={(event) => uploadSignedReceipt(repair, event)} />
+                          </label>
+                          {repair.signedReceiptUrl ? (
+                            <a className="block px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" href={repair.signedReceiptUrl} target="_blank" rel="noreferrer" onClick={() => setOpenDocsMenu("")}>
+                              Ver recibo firmado
+                            </a>
+                          ) : null}
                           <div className="border-t border-[#E5E7EB] px-3 py-2">
                             <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#64748B]">Comunicacion</p>
                             <div className="flex items-center gap-2">

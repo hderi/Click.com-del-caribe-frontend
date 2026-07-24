@@ -16,7 +16,6 @@ function statusLabel(status) {
     esperando_refaccion: "Esperando refacción",
     finalizado: "Finalizado",
     entregado: "Entregado",
-    cancelado: "Cancelado",
   };
 
   return labels[status] || status || "Recibido";
@@ -92,8 +91,6 @@ function mapRepair(data, mensaje) {
       color:
         item.estado === "entregado"
           ? "#22C55E"
-          : item.estado === "cancelado"
-            ? "#BE123C"
           : item.estado === "en_reparacion"
             ? "#0066FF"
             : "#FF6B2C",

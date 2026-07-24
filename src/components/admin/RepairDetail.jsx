@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -6,7 +6,7 @@ import { formatDate, formatTime, formatMoney } from "@/lib/api";
 import { getSessionUser, getToken } from "@/lib/authStorage";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const CLOSED_STATUSES = new Set(["entregado", "cancelado"]);
+const CLOSED_STATUSES = new Set(["entregado"]);
 const STATUS_OPTIONS = [
   { value: "recibido", label: "Recibido" },
   { value: "diagnostico", label: "Diagnóstico" },
@@ -14,17 +14,15 @@ const STATUS_OPTIONS = [
   { value: "esperando_refaccion", label: "En espera" },
   { value: "finalizado", label: "Listo" },
   { value: "entregado", label: "Entregado" },
-  { value: "cancelado", label: "Cancelado" },
 ];
 
 const STATUS_FLOW = {
-  recibido: ["diagnostico", "en_reparacion", "esperando_refaccion", "finalizado", "entregado", "cancelado"],
-  diagnostico: ["en_reparacion", "esperando_refaccion", "finalizado", "entregado", "cancelado"],
-  en_reparacion: ["esperando_refaccion", "finalizado", "entregado", "cancelado"],
-  esperando_refaccion: ["en_reparacion", "finalizado", "entregado", "cancelado"],
-  finalizado: ["entregado", "cancelado"],
+  recibido: ["diagnostico", "en_reparacion", "esperando_refaccion", "finalizado", "entregado"],
+  diagnostico: ["en_reparacion", "esperando_refaccion", "finalizado", "entregado"],
+  en_reparacion: ["esperando_refaccion", "finalizado", "entregado"],
+  esperando_refaccion: ["en_reparacion", "finalizado", "entregado"],
+  finalizado: ["entregado"],
   entregado: [],
-  cancelado: [],
 };
 function value(...items) {
   const found = items.find((item) => item !== undefined && item !== null && item !== "");
@@ -32,9 +30,33 @@ function value(...items) {
 }
 
 function asText(item) {
-  if (Array.isArray(item)) return item.length ? item.join(", ") : "-";
+  if (Array.isArray(item)) return item.length ? item.map(displayText).join(", ") : "-";
   if (typeof item === "boolean") return item ? "Si" : "No";
-  return value(item);
+  return displayText(value(item));
+}
+
+function displayText(item) {
+  const text = String(value(item)).trim();
+  if (!text || text === "-") return "-";
+  const labels = {
+    sin_danos: "Sin daños",
+    rayones: "Rayones",
+    golpes: "Golpes",
+    pantalla_rota: "Pantalla rota",
+    sin_cargador: "Sin cargador",
+    buen_estado: "Buen estado",
+    efectivo: "Efectivo",
+    tarjeta: "Tarjeta",
+    transferencia: "Transferencia",
+    diagnostico: "Diagnóstico",
+    en_reparacion: "En reparación",
+    esperando_refaccion: "En espera",
+    finalizado: "Listo",
+    entregado: "Entregado",
+  };
+  const key = text.toLowerCase();
+  if (labels[key]) return labels[key];
+  return text.replace(/_/g, " ");
 }
 
 function statusLabel(status) {
@@ -63,13 +85,30 @@ function normalizePhotos(repair) {
 }
 
 function photoSrc(photo) {
-  const src = typeof photo === "string" ? photo : photo?.url || photo?.ruta || photo?.src || photo?.dataUrl;
+  const src = typeof photo === "string"
+    ? photo
+    : photo?.signedUrl || photo?.publicUrl || photo?.url || photo?.ruta || photo?.src || photo?.dataUrl;
   if (!src) return "";
   if (src.startsWith("data:")) return src;
+  if (/^https?:\/\//i.test(src)) return src;
+  if (!src.startsWith("/") && photo?.storage === "supabase") return "";
   const absolute = src.startsWith("http") ? src : `${API_BASE}${src.startsWith("/") ? src : `/${src}`}`;
   if (!absolute.includes("/uploads/") || absolute.includes("token=")) return absolute;
   const token = getToken();
   return token ? `${absolute}${absolute.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : absolute;
+}
+
+function EvidenceImage({ photo, alt, className }) {
+  const [failed, setFailed] = useState(false);
+  const src = photoSrc(photo);
+  if (!src || failed) {
+    return (
+      <div className={`flex items-center justify-center bg-[#F1F5F9] px-3 text-center text-xs font-bold text-[#64748B] ${className}`}>
+        Imagen no disponible
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
 }
 
 function fileToDataUrl(file) {
@@ -220,7 +259,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
         <div className="grid gap-4 lg:grid-cols-2">
           <Panel title="Datos del cliente">
             <Field label="Nombre">{value(cliente.nombre, current.clienteNombre, current.client)}</Field>
-            <Field label="Telefono">{value(cliente.telefono, current.telefono, current.phone)}</Field>
+            <Field label="Teléfono">{value(cliente.telefono, current.telefono, current.phone)}</Field>
             <Field label="Correo">{value(cliente.correo, current.correo, current.email)}</Field>
             <Field label="Contacto">{value(current.canalContacto, current.contactChannel)}</Field>
           </Panel>
@@ -230,11 +269,11 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
             <Field label="Marca">{value(equipo.marca, current.marca)}</Field>
             <Field label="Modelo">{value(equipo.modelo, current.modelo)}</Field>
             <Field label="Serie">{value(equipo.serie, current.numeroSerie, current.serialNumber)}</Field>
-            <Field label="Contrasena">{value(equipo.passwordEquipo, current.passwordEquipo)}</Field>
+            <Field label="Contraseña">{value(equipo.passwordEquipo, current.passwordEquipo)}</Field>
           </Panel>
 
           <Panel title="Recepcion y asignacion">
-            <Field label="Recibio">{value(current.recibio, current.recibidoPor)}</Field>
+            <Field label="Recibió">{value(current.recibio, current.recibidoPor)}</Field>
             <Field label="Hora">{formatTime(entrada)}</Field>
             <Field label="Tecnico">{value(current.tecnico, current.tecnicoAsignado)}</Field>
             <Field label="Autorizacion">{value(current.autorizacion?.metodo, current.authorizationMethod)}</Field>
@@ -251,7 +290,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
               <Field label="Forma pago">{value(anticipo.formaPago, pago.metodoPago, current.metodoPago)}</Field>
               <Field label="Factura">{asText(value(pago.factura, current.factura))}</Field>
               <Field label="Garantia">{asText(value(garantia.aplica, current.garantiaAplica))}</Field>
-              <Field label="Dias">{value(garantia.dias, current.diasGarantia)}</Field>
+              <Field label="Días">{value(garantia.dias, current.diasGarantia)}</Field>
               <Field label="Nota">{value(garantia.nota, garantia.notas, current.notaGarantia)}</Field>
             </div>
           </Panel>
@@ -262,7 +301,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
 
           <Panel title="Condiciones de recepcion">
             <Field label="Accesorios">{asText(accesorios)}</Field>
-            <Field label="Estado fisico">{asText(estadoFisico)}</Field>
+            <Field label="Estado físico">{asText(estadoFisico)}</Field>
           </Panel>
 
           <Panel title="Observaciones">
@@ -275,7 +314,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {photos.map((photo, index) => (
                 <figure key={photoSrc(photo) || index} className="overflow-hidden rounded-md border border-[#DDE5EE] bg-[#F8FAFC]">
-                  <img src={photoSrc(photo)} alt={photo?.nombre || `Evidencia ${index + 1}`} className="h-40 w-full object-cover" />
+                  <EvidenceImage photo={photo} alt={photo?.nombre || `Evidencia ${index + 1}`} className="h-40 w-full object-cover" />
                   <figcaption className="truncate px-2 py-2 text-xs font-semibold text-[#64748B]">{photo?.nombre || photo?.name || `Evidencia ${index + 1}`}</figcaption>
                 </figure>
               ))}
@@ -300,7 +339,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {item.fotos.map((photo, photoIndex) => (
                         <figure key={photoSrc(photo) || photoIndex} className="overflow-hidden rounded-md border border-[#DDE5EE] bg-white">
-                          <img src={photoSrc(photo)} alt={photo?.nombre || `Foto de avance ${photoIndex + 1}`} className="h-28 w-full object-cover" />
+                          <EvidenceImage photo={photo} alt={photo?.nombre || `Foto de avance ${photoIndex + 1}`} className="h-28 w-full object-cover" />
                           <figcaption className="truncate px-2 py-1.5 text-[11px] font-semibold text-[#64748B]">{photo?.nombre || photo?.name || `Foto de avance ${photoIndex + 1}`}</figcaption>
                         </figure>
                       ))}
@@ -334,16 +373,16 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
     tecnico: repair.tecnico || "",
     diagnostico: "",
     observacion: "",
-    visibleCliente: true,
+    visibleCliente: false,
     costoServicio: String(value(pago.costoServicio, pago.costo, repair.costoServicio, "")),
     pagoRecibido: String(value(anticipo.monto, pago.anticipo, repair.anticipoMonto, "")),
     formaPago: value(anticipo.formaPago, pago.metodoPago, repair.metodoPago, ""),
-    fotosVisibles: true,
+    fotosVisibles: false,
   }));
   const [files, setFiles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const statusRequiresNote = ["esperando_refaccion", "entregado", "cancelado"].includes(form.estado);
+  const statusRequiresNote = ["esperando_refaccion", "entregado"].includes(form.estado);
 
   function set(name) {
     return (event) => setForm((current) => ({ ...current, [name]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
@@ -358,7 +397,7 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
       if (statusRequiresNote && !form.observacion.trim()) throw new Error("Agrega una observación para este cambio de estado.");
       if (form.estado === repair.estado) throw new Error("Selecciona un estado diferente para registrar un nuevo proceso.");
       const token = getToken();
-      const newPhotos = await prepareFiles(files, true);
+      const newPhotos = await prepareFiles(files, form.fotosVisibles);
       const costo = Number(form.costoServicio || 0);
       const recibido = Number(form.pagoRecibido || 0);
       if (canManagePayment && costo > 0 && recibido > costo) {
@@ -414,14 +453,14 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
         <InputSelect label="Estado" value={form.estado} onChange={set("estado")} options={availableStatusOptions} />
         <ReadOnlyBox label="Tecnico asignado">{repair.tecnico || "Sin asignar"}</ReadOnlyBox>
 
-        <InputArea label="Diagnostico / avance" value={form.diagnostico} onChange={set("diagnostico")} />
+        <InputArea label="Diagnóstico / avance" value={form.diagnostico} onChange={set("diagnostico")} />
         <InputArea label={statusRequiresNote ? "Observación obligatoria" : "Observación"} value={form.observacion} onChange={set("observacion")} />
 
         <div className="lg:col-span-2 rounded-md border border-[#E5EAF0] bg-[#F8FAFC] p-3">
           <label className="block text-[12px] font-bold uppercase tracking-[0.08em] text-[#64748B]">Fotos de actualización</label>
           <input type="file" accept="image/*" multiple onChange={(event) => setFiles(event.target.files)} className="mt-2 w-full text-sm" />
           <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#334155]">
-            <input type="checkbox" checked readOnly disabled />
+            <input type="checkbox" checked={form.fotosVisibles} onChange={set("fotosVisibles")} />
             Marcar fotos nuevas como visibles para el cliente
           </label>
           <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#334155]">
@@ -503,7 +542,7 @@ function CommunicationPanel({ folio }) {
   }
 
   return (
-    <Panel title="Comunicación">
+    <Panel title="ComunicaciÃ³n">
       <div className="grid gap-2 sm:grid-cols-2">
         <ActionButton onClick={() => openMessage("whatsapp")} disabled={loading === "whatsapp"}>
           {loading === "whatsapp" ? "Preparando..." : "Enviar WhatsApp"}
@@ -524,6 +563,9 @@ function ActionButton({ children, ...props }) {
     </button>
   );
 }
+
+
+
 
 
 

@@ -261,38 +261,6 @@ export default function DashboardPage() {
     .sort((a, b) => String(a.fechaEntregaEstimada).localeCompare(String(b.fechaEntregaEstimada)))
     .slice(0, 4);
 
-  const alertas = [];
-
-  reparacionesPeriodo.forEach((item) => {
-    const fecha = toDateOnly(item.fecha);
-    if (!fecha) return;
-
-    const dias = Math.floor((new Date(hoyIso) - new Date(fecha)) / 86400000);
-
-    if (["recibido", "diagnostico", "en_reparacion"].includes(item.estado) && dias >= 7) {
-      alertas.push({
-        tipo: "rojo",
-        texto: `Orden ${item.folio} lleva ${dias} días en reparación.`,
-        link: "/admin/reparaciones",
-        linkLabel: "Ver órdenes",
-      });
-    } else if (item.estado === "esperando_refaccion" && dias >= 3) {
-      alertas.push({
-        tipo: "naranja",
-        texto: `Orden ${item.folio} espera refacción desde hace ${dias} días.`,
-        link: "/admin/equipos",
-        linkLabel: "Ver equipo",
-      });
-    } else if (item.estado === "finalizado" && dias >= 2) {
-      alertas.push({
-        tipo: "amarillo",
-        texto: `Cliente de la orden ${item.folio} aún no recoge su equipo.`,
-        link: "/admin/clientes",
-        linkLabel: "Ver clientes",
-      });
-    }
-  });
-
   const resumenDia = reparacionesPeriodo.reduce(
     (acc, item) => {
       const fecha = toDateOnly(item.fecha);
@@ -411,38 +379,8 @@ export default function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Próximas entregas" subtitle="Equipos listos, pendientes de entregar al cliente." showFilter>
-          {proximasEntregas.length === 0 ? (
-            <div className="mt-5 border border-dashed border-[var(--dash-line)] bg-white p-8 text-center text-[13px] font-medium text-[var(--dash-dim)]">
-              No hay equipos listos para entregar.
-            </div>
-          ) : (
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[420px]">
-                <thead>
-                  <tr className="border-b border-[var(--dash-line)]">
-                    <Th>Fecha</Th>
-                    <Th>Equipo</Th>
-                    <Th>Cliente</Th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {proximasEntregas.map((item) => (
-                    <tr key={item.folio} className="border-b border-[var(--dash-line)] last:border-b-0">
-                      <td className="px-3 py-3 text-[13px] text-[var(--dash-dim)]">{fechaCorta(item.fechaEntregaEstimada)}</td>
-                      <td className="px-3 py-3 text-[13px] font-semibold text-[var(--dash-text)]">{item.equipo}</td>
-                      <td className="px-3 py-3 text-[13px] text-[var(--dash-text)]">{item.cliente}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <Link href="/admin/alertas" className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--dash-accent)] hover:underline">
-            Ver agenda y recordatorios <ArrowRight className="h-4 w-4" />
-          </Link>
+        <Panel title="Resumen del día" subtitle="Basado en el rango de fechas seleccionado.">
+          <DaySummary resumenDia={resumenDia} />
         </Panel>
       </section>
 
@@ -513,7 +451,7 @@ export default function DashboardPage() {
         </Panel>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[0.75fr_0.75fr_1fr]">
+      <section className="grid gap-5 xl:grid-cols-2">
         <Panel title="Carga por técnico" subtitle="Órdenes activas asignadas." showFilter>
           <div className="mt-5 space-y-4">
             {data.tecnicos.length === 0 ? (
@@ -538,40 +476,8 @@ export default function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Recordatorios importantes" subtitle="Seguimientos que conviene revisar.">
-          {alertas.length === 0 ? (
-            <div className="mt-5 border border-dashed border-[var(--dash-line)] bg-white p-6 text-center text-[13px] font-medium text-[var(--dash-dim)]">
-              Sin recordatorios por ahora.
-            </div>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {alertas.slice(0, 4).map((alerta, index) => {
-                const colores = { rojo: "#EF4444", naranja: "#F97316", amarillo: "#F59E0B" };
-
-                return (
-                  <div key={index} className="flex items-start justify-between gap-3 border border-[var(--dash-line)] bg-white px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colores[alerta.tipo] }} />
-                      <p className="text-[13px] text-[var(--dash-text)]">{alerta.texto}</p>
-                    </div>
-
-                    <Link href={alerta.link} className="shrink-0 whitespace-nowrap text-[12px] font-semibold text-[var(--dash-accent)] hover:underline">
-                      {alerta.linkLabel}
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Resumen del día" subtitle="Basado en el rango de fechas seleccionado.">
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <Small label="Equipos recibidos" value={resumenDia.recibidos} />
-            <Small label="Reparaciones iniciadas" value={resumenDia.iniciadas} />
-            <Small label="Entregas realizadas" value={resumenDia.entregas} />
-            <Small label="Ingresos del día" value={`$ ${resumenDia.ingresos.toLocaleString("es-MX")}`} />
-          </div>
+        <Panel title="Próximas entregas" subtitle="Equipos listos, pendientes de entregar al cliente." showFilter>
+          <NextDeliveries items={proximasEntregas} />
         </Panel>
       </section>
     </main>
@@ -642,6 +548,57 @@ function Small({ label, value }) {
       <p className="text-[22px] font-bold text-[var(--dash-text)]">{value}</p>
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--dash-dim)]">{label}</p>
     </div>
+  );
+}
+
+function DaySummary({ resumenDia }) {
+  return (
+    <div className="mt-5 grid grid-cols-2 gap-3">
+      <Small label="Equipos recibidos" value={resumenDia.recibidos} />
+      <Small label="Reparaciones iniciadas" value={resumenDia.iniciadas} />
+      <Small label="Entregas realizadas" value={resumenDia.entregas} />
+      <Small label="Ingresos del día" value={`$ ${resumenDia.ingresos.toLocaleString("es-MX")}`} />
+    </div>
+  );
+}
+
+function NextDeliveries({ items }) {
+  if (!items.length) {
+    return (
+      <div className="mt-5 border border-dashed border-[var(--dash-line)] bg-white p-6 text-center text-[13px] font-medium text-[var(--dash-dim)]">
+        No hay equipos listos para entregar.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[420px]">
+          <thead>
+            <tr className="border-b border-[var(--dash-line)]">
+              <Th>Fecha</Th>
+              <Th>Equipo</Th>
+              <Th>Cliente</Th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.folio} className="border-b border-[var(--dash-line)] last:border-b-0">
+                <td className="px-3 py-3 text-[13px] text-[var(--dash-dim)]">{fechaCorta(item.fechaEntregaEstimada)}</td>
+                <td className="px-3 py-3 text-[13px] font-semibold text-[var(--dash-text)]">{item.equipo}</td>
+                <td className="px-3 py-3 text-[13px] text-[var(--dash-text)]">{item.cliente}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Link href="/admin/alertas" className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--dash-accent)] hover:underline">
+        Ver agenda y recordatorios <ArrowRight className="h-4 w-4" />
+      </Link>
+    </>
   );
 }
 

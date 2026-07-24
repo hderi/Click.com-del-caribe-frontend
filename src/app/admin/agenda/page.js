@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const estadosListos = ["finalizado"];
-const estadosCerrados = ["finalizado", "entregado"];
+const estadoEntregado = "entregado";
 
 const statusLabels = {
   recibido: "Recibido",
@@ -67,7 +67,8 @@ export default function AgendaPage() {
   }, []);
 
   const data = useMemo(() => {
-    const enRango = reparaciones.filter((r) => {
+    const vigentes = reparaciones.filter((r) => String(r.estado || "").toLowerCase() !== estadoEntregado);
+    const enRango = vigentes.filter((r) => {
       const fecha = dateOnly(r.fechaEntregaEstimada || r.fechaIngreso || r.creadoEn);
       return fecha && (!inicio || fecha >= inicio) && (!fin || fecha <= fin);
     });
@@ -75,12 +76,12 @@ export default function AgendaPage() {
     const hoy = today();
     const paraHoy = enRango.filter((r) => dateOnly(r.fechaEntregaEstimada) === hoy);
     const listas = enRango.filter((r) => estadosListos.includes(r.estado));
-    const vencidas = reparaciones.filter((r) => {
+    const vencidas = vigentes.filter((r) => {
       const fecha = dateOnly(r.fechaEntregaEstimada);
-      return fecha && fecha < hoy && !estadosCerrados.includes(r.estado);
+      return fecha && fecha < hoy && !estadosListos.includes(r.estado);
     });
 
-    return { enRango, paraHoy, listas, vencidas };
+    return { vigentes, enRango, paraHoy, listas, vencidas };
   }, [reparaciones, inicio, fin]);
 
   return (
@@ -95,7 +96,7 @@ export default function AgendaPage() {
             </p>
           </div>
           <div className="rounded-md border border-[#E1E8F0] bg-[#F8FAFC] px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#64748B]">
-            {loading ? "Cargando datos" : `${reparaciones.length} ordenes registradas`}
+            {loading ? "Cargando datos" : `${data.vigentes.length} ordenes vigentes`}
           </div>
         </div>
       </section>

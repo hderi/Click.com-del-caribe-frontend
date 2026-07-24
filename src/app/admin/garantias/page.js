@@ -114,13 +114,7 @@ export default function GarantiasPage() {
     <main className="space-y-6 text-[#0A0A0A]" style={{ fontFamily: "var(--cc-font), Inter, Arial, sans-serif" }}>
       <section className="overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-white">
         <div className="flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF6B00]">Control de servicio</p>
-            <h1 className="mt-1.5 text-[24px] font-bold tracking-[-0.02em] text-[#0A0A0A]">Garantias</h1>
-            <p className="mt-2 text-[13px] font-semibold text-[#4B5563]">
-              {loading ? "Cargando datos" : `${warranties.length} garantias registradas en el sistema.`}
-            </p>
-          </div>
+
 
           <label className="flex h-11 w-full max-w-[420px] items-center gap-3 rounded-[6px] border border-[#D1D5DB] bg-white px-4">
             <span className="text-[15px] text-[#8A8A8A]">⌕</span>
@@ -145,7 +139,7 @@ export default function GarantiasPage() {
       <section className="overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-white">
         <div className="border-b border-[#E5E7EB] px-5 py-4">
           <h2 className="text-[18px] font-bold tracking-[-0.01em] text-[#0A0A0A]">Listado de garantias</h2>
-          <p className="mt-1 text-[13px] text-[#6B7280]">Consulta las reparaciones con garantia sin crear folios nuevos ni afectar el historial.</p>
+
         </div>
 
         <div className="overflow-x-auto">

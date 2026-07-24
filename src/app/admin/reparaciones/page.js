@@ -14,7 +14,6 @@ const statusMeta = {
   esperando_refaccion: { label: "En espera", color: "#B98517", note: "Pieza o autorización" },
   finalizado: { label: "Listos", color: "#2F855A", note: "Para entrega" },
   entregado: { label: "Entregados", color: "#64748B", note: "Cerrados" },
-  cancelado: { label: "Cancelados", color: "#BE123C", note: "Sin servicio" },
 };
 
 function formatDate(value) {
@@ -42,9 +41,9 @@ function mapRepair(repair) {
     tech: repair.tecnico || "Sin asignar",
     receivedBy: repair.recibidoPor || repair.creadoPor || "Sin registrar",
     date: formatDate(repair.fechaIngreso || repair.creadoEn),
-    priority: repair.prioridad || (["entregado", "cancelado"].includes(repair.estado) ? "Cerrada" : "Normal"),
+    priority: repair.prioridad || (repair.estado === "entregado" ? "Cerrada" : "Normal"),
     lastMove: lastHistory?.titulo || repair.observacionesCliente || "Equipo registrado",
-    signedReceiptUrl: repair.reciboFirmadoUrl || repair.reciboFirmado?.url || repair.documentos?.reciboFirmado?.url || "",
+    signedReceiptUrl: repair.reciboFirmadoUrl || repair.reciboFirmado?.url || repair.documentos?.reciboFirmado?.url || repair.documentos?.reciboFirmado?.signedUrl || "",
   };
 }
 

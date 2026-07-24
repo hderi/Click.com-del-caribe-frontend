@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { getToken, getSessionUser } from "@/lib/authStorage";
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,7 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const ROLES = [
   { value: "admin", label: "Administrador", limit: 2,  },
   { value: "ventas", label: "Ventas", limit: 2, },
-  { value: "tecnico", label: "Técnico", limit: 3, },
+  { value: "tecnico", label: "Técnico", limit: 20, },
 ];
 
 function authHeaders() {
@@ -293,3 +293,5 @@ export default function ConfiguracionPage() {
     </div>
   );
 }
+
+
