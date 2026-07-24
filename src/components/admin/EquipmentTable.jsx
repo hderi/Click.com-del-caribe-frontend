@@ -19,13 +19,13 @@ function EquipmentIcon({ type }) {
 function StatusBadge({ status }) {
   const styles = {
     "En taller": "border-[#A8DDF1] bg-[#E3F5FC] text-[#0077B6]",
-    "En reparación": "border-[#A8DDF1] bg-[#E3F5FC] text-[#0077B6]",
-    "Sin reparación activa": "border-[#C9D8E5] bg-[#EEF2F6] text-[#526174]",
+    "En reparacion": "border-[#A8DDF1] bg-[#E3F5FC] text-[#0077B6]",
+    "Sin reparacion activa": "border-[#C9D8E5] bg-[#EEF2F6] text-[#526174]",
     Entregado: "border-[#B9E8CD] bg-[#E8F8EF] text-[#15803D]",
   };
 
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${styles[status] || styles["Sin reparación activa"]}`}>
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${styles[status] || styles["Sin reparacion activa"]}`}>
       {status}
     </span>
   );
@@ -43,8 +43,10 @@ export default function EquipmentTable({ equipment, loading = false }) {
   if (!equipment || equipment.length === 0) {
     return (
       <div className="rounded-[24px] border border-[#C9D8E5] bg-white p-12 text-center shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
-        <p className="text-base font-black text-[#102033]">Aún no hay equipos registrados</p>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#526174]">Aquí aparecerán los equipos cuando registres una reparación o captures un dispositivo manualmente.</p>
+        <p className="text-base font-black text-[#102033]">Aun no hay equipos registrados</p>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#526174]">
+          Aqui apareceran los equipos cuando registres una reparacion o captures un dispositivo manualmente.
+        </p>
       </div>
     );
   }
@@ -53,7 +55,9 @@ export default function EquipmentTable({ equipment, loading = false }) {
     <div className="overflow-hidden rounded-[24px] border border-[#C9D8E5] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
       <div className="flex flex-col gap-2 border-b border-[#C9D8E5] px-5 py-4 sm:px-6">
         <h2 className="text-xl font-black tracking-[-0.02em] text-[#102033]">Listado de equipos</h2>
-        <p className="text-sm text-[#526174]">El equipo guarda su propio historial aunque cambie de reparación o vuelva al taller meses después.</p>
+        <p className="text-sm text-[#526174]">
+          El equipo guarda su propio historial aunque cambie de reparacion o vuelva al taller meses despues.
+        </p>
       </div>
 
       <div className="overflow-x-auto">
@@ -65,7 +69,7 @@ export default function EquipmentTable({ equipment, loading = false }) {
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Cliente</th>
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Estado</th>
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Reparaciones</th>
-              <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Última atención</th>
+              <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Ultima atencion</th>
               <th className="px-5 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-[#526174] sm:px-6">Acciones</th>
             </tr>
           </thead>
@@ -76,7 +80,9 @@ export default function EquipmentTable({ equipment, loading = false }) {
                   <div className="flex items-center gap-3">
                     <EquipmentIcon type={item.type} />
                     <div>
-                      <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="text-sm font-black text-[#102033] hover:text-[#0077B6]">{item.brand} {item.model}</Link>
+                      <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="text-sm font-black text-[#102033] hover:text-[#0077B6]">
+                        {item.brand} {item.model}
+                      </Link>
                       <p className="text-xs font-bold text-[#526174]">{item.type}</p>
                     </div>
                   </div>
@@ -94,11 +100,19 @@ export default function EquipmentTable({ equipment, loading = false }) {
                   <p className="text-sm font-black text-[#102033]">{item.repairs}</p>
                   {item.currentFolio ? <p className="text-xs text-[#526174]">Folio activo: {item.currentFolio}</p> : null}
                 </td>
-                <td className="px-3 py-4 text-sm font-bold text-[#334155]">{item.lastService && item.lastService !== "Sin historial" ? item.lastService : "—"}</td>
+                <td className="px-3 py-4 text-sm font-bold text-[#334155]">
+                  {item.lastService && item.lastService !== "Sin historial" ? item.lastService : "-"}
+                </td>
                 <td className="px-5 py-4 text-right sm:px-6">
                   <div className="inline-flex items-center gap-1 rounded-2xl border border-[#C9D8E5] bg-[#EEF5FA] p-1">
-                    <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="rounded-xl px-3 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">Historial</Link>
-                    <Link href={`/admin/equipos/${encodeURIComponent(item.id)}#historial`} className="rounded-xl px-3 py-2 text-xs font-black text-[#526174] transition hover:bg-white">Historial</Link>
+                    <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="rounded-xl px-3 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">
+                      Historial
+                    </Link>
+                    {item.status === "Entregado" && item.currentFolio ? (
+                      <Link href="/admin/garantias" className="rounded-xl px-3 py-2 text-xs font-black text-[#526174] transition hover:bg-white">
+                        Abrir garantia
+                      </Link>
+                    ) : null}
                   </div>
                 </td>
               </tr>

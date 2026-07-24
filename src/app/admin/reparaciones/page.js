@@ -14,6 +14,7 @@ const statusMeta = {
   esperando_refaccion: { label: "En espera", color: "#B98517", note: "Pieza o autorización" },
   finalizado: { label: "Listos", color: "#2F855A", note: "Para entrega" },
   entregado: { label: "Entregados", color: "#64748B", note: "Cerrados" },
+  cancelado: { label: "Cancelados", color: "#BE123C", note: "Sin servicio" },
 };
 
 function formatDate(value) {
@@ -33,19 +34,23 @@ function mapRepair(repair) {
     folio: repair.folio,
     client: cliente.nombre || "Cliente sin nombre",
     phone: cliente.telefono || cliente.correo || "Sin contacto",
+    email: cliente.correo || "",
+    linkActivo: Boolean(repair.linkActivo),
     device: [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || "Equipo sin modelo",
     deviceType: equipo.tipo || "Equipo",
     status: repair.estado || "recibido",
     tech: repair.tecnico || "Sin asignar",
     receivedBy: repair.recibidoPor || repair.creadoPor || "Sin registrar",
     date: formatDate(repair.fechaIngreso || repair.creadoEn),
-    priority: repair.prioridad || (repair.estado === "entregado" ? "Cerrada" : "Normal"),
+    priority: repair.prioridad || (["entregado", "cancelado"].includes(repair.estado) ? "Cerrada" : "Normal"),
     lastMove: lastHistory?.titulo || repair.observacionesCliente || "Equipo registrado",
+    signedReceiptUrl: repair.reciboFirmadoUrl || repair.reciboFirmado?.url || repair.documentos?.reciboFirmado?.url || "",
   };
 }
 
 export default function ReparacionesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,26 +84,34 @@ export default function ReparacionesPage() {
 
   const filteredRepairs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return repairs;
 
-    return repairs.filter((repair) =>
-      [repair.folio, repair.client, repair.phone, repair.device, repair.deviceType, repair.tech, repair.receivedBy, repair.date]
+    return repairs.filter((repair) => {
+      if (statusFilter !== "todos" && repair.status !== statusFilter) return false;
+      if (!q) return true;
+
+      return [repair.folio, repair.client, repair.phone, repair.email, repair.device, repair.deviceType, repair.tech, repair.receivedBy, repair.date]
         .join(" ")
         .toLowerCase()
-        .includes(q)
-    );
-  }, [repairs, searchQuery]);
+        .includes(q);
+    });
+  }, [repairs, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
     return Object.entries(statusMeta).map(([status, meta]) => ({
       ...meta,
+      status,
       count: repairs.filter((repair) => repair.status === status).length,
     }));
   }, [repairs]);
 
   return (
-    <div className="space-y-6">
-      <RepairsHeader searchQuery={searchQuery} onSearchChange={setSearchQuery} repairCount={repairs.length} />
+    <div className="space-y-6" style={{ fontFamily: "var(--cc-font), Inter, Arial, sans-serif" }}>
+      <RepairsHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        repairCount={repairs.length}
+        stats={stats}
+      />
 
       {error && (
         <div className="rounded-2xl border border-[#F0C391] bg-[#FFF1E3] p-4 text-sm font-bold text-[#B45309]">
@@ -106,27 +119,17 @@ export default function ReparacionesPage() {
         </div>
       )}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
-        {stats.map((item) => (
-          <div key={item.label} className="rounded-2xl border border-[#C9D8E5] bg-[#FFFFFF] p-4 shadow-[0_12px_28px_rgba(5,12,22,0.10)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#526174]">{item.label}</p>
-                <p className="mt-1 text-3xl font-black" style={{ color: item.color }}>{item.count}</p>
-                <p className="mt-1 text-xs leading-5 text-[#526174]">{item.note}</p>
-              </div>
-              <span className="mt-1 h-3 w-3 rounded-full" style={{ background: item.color, boxShadow: `0 0 0 6px ${item.color}18` }} />
-            </div>
-          </div>
-        ))}
-      </section>
-
       {loading ? (
         <div className="rounded-[24px] border border-[#C9D8E5] bg-white p-10 text-center text-sm font-bold text-[#526174]">
           Cargando reparaciones...
         </div>
       ) : (
-        <RepairsManagementTable repairs={filteredRepairs} />
+        <RepairsManagementTable
+          repairs={filteredRepairs}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          statusOptions={stats}
+        />
       )}
     </div>
   );

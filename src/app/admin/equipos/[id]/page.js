@@ -1,7 +1,7 @@
 "use client";
 import { getToken } from "@/lib/authStorage";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import StatusBadge from "@/components/admin/StatusBadge";
 
@@ -73,6 +73,7 @@ export default function EquipoDetallePage({ params }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [openRepairFolio, setOpenRepairFolio] = useState("");
   const id = decodeURIComponent(params.id);
 
   useEffect(() => {
@@ -232,7 +233,7 @@ export default function EquipoDetallePage({ params }) {
             <h2 className="text-xl font-black text-[#102033]">Historial del equipo</h2>
             <p className="mt-1 text-sm leading-6 text-[#526174]">Reparaciones vinculadas a este mismo equipo.</p>
           </div>
-          {activeRepair ? (
+          {false ? (
             <Link href={`/admin/reparaciones/${activeRepair.folio}`} className="inline-flex rounded-2xl bg-[#0077B6] px-5 py-3 text-sm font-black text-white hover:bg-[#00669C]">
               Abrir reparación actual
             </Link>
@@ -259,15 +260,39 @@ export default function EquipoDetallePage({ params }) {
               </thead>
               <tbody>
                 {history.map((repair) => (
-                  <tr key={repair.folio} className="border-t border-[#D9E6EF] bg-white">
-                    <td className="px-4 py-3 font-black text-[#0077B6]">{repair.folio}</td>
-                    <td className="px-4 py-3 font-semibold text-[#102033]">{formatDate(repair.fecha)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={repair.estado} /></td>
-                    <td className="px-4 py-3 font-semibold text-[#102033]">{repair.recibidoPor}</td>
-                    <td className="px-4 py-3 font-semibold text-[#102033]">{repair.tecnico}</td>
-                    <td className="px-4 py-3 font-semibold text-[#526174]">{repair.lastAdvance}</td>
-                    <td className="px-4 py-3 text-right"><Link href={`/admin/reparaciones/${repair.folio}`} className="font-black text-[#0077B6] hover:underline">Ver</Link></td>
-                  </tr>
+                  <Fragment key={repair.folio}>
+                    <tr className="border-t border-[#D9E6EF] bg-white">
+                      <td className="px-4 py-3 font-black text-[#0077B6]">{repair.folio}</td>
+                      <td className="px-4 py-3 font-semibold text-[#102033]">{formatDate(repair.fecha)}</td>
+                      <td className="px-4 py-3"><StatusBadge status={repair.estado} /></td>
+                      <td className="px-4 py-3 font-semibold text-[#102033]">{repair.recibidoPor}</td>
+                      <td className="px-4 py-3 font-semibold text-[#102033]">{repair.tecnico}</td>
+                      <td className="px-4 py-3 font-semibold text-[#526174]">{repair.lastAdvance}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setOpenRepairFolio((current) => (current === repair.folio ? "" : repair.folio))}
+                          className="font-black text-[#0077B6] hover:underline"
+                        >
+                          Ver
+                        </button>
+                      </td>
+                    </tr>
+                    {openRepairFolio === repair.folio ? (
+                      <tr className="border-t border-[#D9E6EF] bg-[#F8FBFD]">
+                        <td colSpan={7} className="px-4 py-4">
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <Info label="Folio" value={repair.folio} />
+                            <Info label="Estado" value={repair.estado} />
+                            <Info label="Fecha" value={formatDate(repair.fecha)} />
+                            <Info label="Recibió" value={repair.recibidoPor} />
+                            <Info label="Técnico" value={repair.tecnico} />
+                            <Info label="Último avance" value={repair.lastAdvance} />
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

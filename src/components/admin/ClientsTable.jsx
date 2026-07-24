@@ -19,6 +19,15 @@ function StatusBadge({ active }) {
   );
 }
 
+function FrequentBadge({ repairs }) {
+  if (Number(repairs || 0) < 2) return null;
+  return (
+    <span className="inline-flex rounded-full border border-[#E8C58F] bg-[#FFF7ED] px-2.5 py-1 text-[11px] font-black text-[#B45309]">
+      Frecuente
+    </span>
+  );
+}
+
 function WhatsAppIcon() {
   return (
     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -93,7 +102,10 @@ export default function ClientsTable({ clients, loading = false, onNewClient }) 
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#E3F5FC] text-xs font-black text-[#0077B6]">{initials}</div>
                       <div>
                         <Link href={`/admin/clientes/${client.id}`} className="text-sm font-black text-[#102033] hover:text-[#0077B6]">{client.name}</Link>
-                        <p className="text-xs text-[#526174]">{client.note}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <p className="text-xs text-[#526174]">{client.note}</p>
+                          <FrequentBadge repairs={client.repairs} />
+                        </div>
                       </div>
                     </div>
                   </td>

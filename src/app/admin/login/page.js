@@ -1,21 +1,21 @@
 ﻿"use client";
-import { useRouter } from "next/navigation";
 
-import { setSession } from "@/lib/authStorage";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import LoginCard from "@/components/admin/LoginCard";
 import LoginBackground from "@/components/admin/LoginBackground";
+import { setSession } from "@/lib/authStorage";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async ({ usuario, password }) => {
-    setIsLoading(true);
+  async function handleLogin({ usuario, password }) {
     setError("");
+    setIsLoading(true);
 
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -23,37 +23,36 @@ export default function AdminLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usuario, password }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesión");
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo iniciar sesión.");
+      }
 
       setSession(data.token, data.usuario);
-      router.push("/admin/dashboard");
+
+      if (data.usuario?.debeCambiarPassword) {
+        router.replace("/admin/perfil");
+        return;
+      }
+
+      router.replace("/admin/dashboard");
     } catch (err) {
-      const message = err instanceof TypeError
-        ? `No se pudo conectar con el backend en ${API_URL}. Revisa que el servidor esté encendido.`
-        : err.message || "Usuario o contraseña incorrectos";
-      setError(message);
+      setError(err.message || "No se pudo iniciar sesión.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
     <main
-      style={{
-        position: "relative",
-        minHeight: "100dvh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px 16px",
-        overflowX: "hidden",
-        overflowY: "auto",
-        fontFamily: "Inter, Segoe UI, Arial, sans-serif",
-      }}
+      className="relative isolate flex min-h-screen w-full items-center justify-center overflow-x-hidden px-4 py-[clamp(28px,7vh,72px)] font-[Inter] sm:px-6 lg:px-8"
+      style={{ fontFamily: "Inter, Segoe UI, Arial, sans-serif" }}
     >
       <LoginBackground />
-      <div className="relative z-10 mx-auto w-full max-w-[460px]">
+
+      <div className="relative z-10 flex w-full justify-center">
         <LoginCard onSubmit={handleLogin} isLoading={isLoading} error={error} />
       </div>
     </main>

@@ -7,9 +7,9 @@ import Link from "next/link";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const ROLES = [
-  { value: "admin", label: "Administrador", limit: 2, note: "Control total del sistema." },
-  { value: "ventas", label: "Ventas / recepción", limit: 2, note: "Registra clientes, equipos, pagos y entregas." },
-  { value: "tecnico", label: "Técnico", limit: 3, note: "Actualiza avances, diagnósticos, fotos y estados." },
+  { value: "admin", label: "Administrador", limit: 2,  },
+  { value: "ventas", label: "Ventas", limit: 2, },
+  { value: "tecnico", label: "Técnico", limit: 3, },
 ];
 
 function authHeaders() {
@@ -44,6 +44,7 @@ export default function ConfiguracionPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
     usuario: "",
@@ -84,6 +85,18 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     cargarUsuarios();
   }, []);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 4500);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(""), 3500);
+    return () => clearTimeout(timer);
+  }, [success]);
 
   function pedirPassword(accion) {
     const value = window.prompt(`Confirma tu contraseña de administrador para ${accion}:`);
@@ -166,24 +179,18 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[22px] border border-[#b9d0df] bg-white p-8 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#c65f11]">Control interno</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#08172a]">Configuración</h1>
-        <p className="mt-2 max-w-3xl text-[#33465f]">
-          Administración de usuarios, permisos y preparación de contenido público. Solo administradores pueden realizar cambios.
-        </p>
-      </section>
+    <div className="space-y-6" style={{ fontFamily: "var(--cc-font), Inter, Arial, sans-serif" }}>
+
 
       {error && <div className="rounded-2xl border border-red-300 bg-red-50 px-5 py-4 font-semibold text-red-700">{error}</div>}
       {success && <div className="rounded-2xl border border-green-300 bg-green-50 px-5 py-4 font-semibold text-green-700">{success}</div>}
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid overflow-hidden rounded-[6px] border-y border-[#E5E7EB] bg-white md:grid-cols-3">
         {ROLES.map((role) => (
-          <div key={role.value} className="rounded-[18px] border border-[#bfd4e3] bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#56677d]">Límite {conteo[role.value] || 0} / {role.limit}</p>
-            <h2 className="mt-2 text-xl font-bold text-[#08172a]">{role.label}</h2>
-            <p className="mt-2 text-sm leading-6 text-[#40546d]">{role.note}</p>
+          <div key={role.value} className="border-b border-[#E5E7EB] px-8 py-7 md:border-b-0 md:border-r md:last:border-r-0">
+            <p className="text-[13px] font-medium uppercase tracking-[0.08em] text-[#8A8A8A]">Limite {conteo[role.value] || 0} / {role.limit}</p>
+            <h2 className="mt-3 text-[20px] font-bold leading-tight text-[#0A0A0A]">{role.label}</h2>
+            <p className="mt-2 max-w-[220px] text-[16px] leading-6 text-[#8A8A8A]">{role.note}</p>
           </div>
         ))}
       </section>
@@ -191,9 +198,7 @@ export default function ConfiguracionPage() {
       <section className="rounded-[22px] border border-[#b9d0df] bg-white p-6 shadow-sm">
         <div className="mb-5">
           <h2 className="text-2xl font-bold text-[#08172a]">Usuarios del sistema</h2>
-          <p className="mt-1 text-sm text-red-700">
-            Para crear, bloquear, activar o eliminar usuarios se solicitará la contraseña del administrador.
-          </p>
+
         </div>
 
         <form onSubmit={crearUsuario} className="grid gap-3 rounded-2xl border border-[#d5e3ed] bg-[#f7fbfd] p-4 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
@@ -212,8 +217,29 @@ export default function ConfiguracionPage() {
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#56677d]">Contraseña temporal</span>
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-xl border border-[#bfd4e3] bg-white px-4 py-3 text-[#08172a]" required />
+  <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#56677d]">
+    Contraseña temporal
+  </span>
+
+  <div className="relative">
+    <input
+      type={showPassword ? "text" : "password"}
+      value={form.password}
+      onChange={(e) => setForm({ ...form, password: e.target.value })}
+      className={`w-full rounded-xl border border-[#bfd4e3] bg-white px-4 py-3 text-[#08172a] ${form.password ? "pr-24" : ""}`}
+      required
+    />
+
+    {form.password ? (
+      <button
+        type="button"
+        onClick={() => setShowPassword((current) => !current)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[#bfd4e3] bg-white px-3 py-1.5 text-xs font-bold text-[#2563eb] hover:bg-[#f1f7ff]"
+      >
+        {showPassword ? "Ocultar" : "Ver"}
+      </button>
+    ) : null}
+  </div>
           </label>
           <button className="self-end rounded-xl bg-[#e86f00] px-6 py-3 font-bold text-white shadow-sm hover:bg-[#c85f00]">
             Crear usuario
@@ -263,32 +289,7 @@ export default function ConfiguracionPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Link href="/admin/configuracion/opciones" className="group rounded-[18px] border border-[#bfd4e3] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#334155] hover:shadow-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b75a5]">Catálogos</p>
-          <h3 className="mt-3 text-lg font-bold text-[#08172a]">Opciones de reparación</h3>
-          <p className="mt-2 text-sm leading-6 text-[#40546d]">Edita marcas, tipos de equipo, accesorios, condiciones, métodos de pago y opciones usadas en la recepción.</p>
-          <span className="mt-4 inline-flex rounded-xl bg-[#eef2f7] px-4 py-2 text-sm font-bold text-[#334155] group-hover:bg-[#e2e8f0]">Editar opciones</span>
-        </Link>
-        <Link href="/admin/configuracion/publica" className="group rounded-[18px] border border-[#bfd4e3] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#0aa7df] hover:shadow-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b75a5]">Contenido</p>
-          <h3 className="mt-3 text-lg font-bold text-[#08172a]">Página de clientes</h3>
-          <p className="mt-2 text-sm leading-6 text-[#40546d]">Edita inicio, textos institucionales, misión, visión, valores, reseñas y secciones visibles.</p>
-          <span className="mt-4 inline-flex rounded-xl bg-[#eaf7ff] px-4 py-2 text-sm font-bold text-[#0077b6] group-hover:bg-[#d8f1ff]">Abrir editor</span>
-        </Link>
-        <Link href="/admin/configuracion/promociones" className="group rounded-[18px] border border-[#bfd4e3] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#ff7a00] hover:shadow-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b75a5]">Imágenes</p>
-          <h3 className="mt-3 text-lg font-bold text-[#08172a]">Promociones</h3>
-          <p className="mt-2 text-sm leading-6 text-[#40546d]">Alta, baja, precios, orden e imágenes de promociones para la página pública.</p>
-          <span className="mt-4 inline-flex rounded-xl bg-[#fff1e4] px-4 py-2 text-sm font-bold text-[#c35b00] group-hover:bg-[#ffe3c7]">Administrar</span>
-        </Link>
-        <Link href="/admin/configuracion/empresa" className="group rounded-[18px] border border-[#bfd4e3] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#2f8f5b] hover:shadow-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b75a5]">Empresa</p>
-          <h3 className="mt-3 text-lg font-bold text-[#08172a]">Políticas y contacto</h3>
-          <p className="mt-2 text-sm leading-6 text-[#40546d]">Edita dirección, teléfono, correo, horarios, políticas de servicio y mapa.</p>
-          <span className="mt-4 inline-flex rounded-xl bg-[#eef9f2] px-4 py-2 text-sm font-bold text-[#247747] group-hover:bg-[#ddf3e6]">Editar datos</span>
-        </Link>
-      </section>
+  
     </div>
   );
 }

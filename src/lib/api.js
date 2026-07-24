@@ -1,7 +1,7 @@
 "use client";
 import { getToken } from "@/lib/authStorage";
 
-export const API_BASE = process.env.siguiente_url_api_pública || "http://localhost:3001";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export function authHeaders(extra = {}) {
   const token = getToken();
@@ -24,7 +24,7 @@ export async function apiFetch(path, options = {}) {
     data = { error: text };
   }
   if (!res.ok) {
-    throw new Error(data?.error || data?.message || "Error de conexión");
+    throw new Error(data?.error || data?.message || "Error de conexion");
   }
   return data;
 }

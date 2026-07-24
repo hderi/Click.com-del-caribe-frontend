@@ -86,9 +86,14 @@ export function dedupePhotos(photos = []) {
   for (const item of photos) {
     const photo = normalizePhoto(item);
     if (!photo) continue;
-    const key = photo.url || photo.dataUrl || [photo.name, photo.size, photo.lastModified].filter(Boolean).join("-");
-    if (!key || seen.has(key)) continue;
+    const cleanUrl = String(photo.url || "").split("?")[0];
+    const name = photo.nombre || photo.name || "";
+    const fileKey = [name, photo.size, photo.lastModified].filter(Boolean).join("|");
+    const key = fileKey || cleanUrl || photo.dataUrl || name;
+    const fallbackKey = name || cleanUrl;
+    if (!key || seen.has(key) || (fallbackKey && seen.has(fallbackKey))) continue;
     seen.add(key);
+    if (fallbackKey) seen.add(fallbackKey);
     clean.push(photo);
   }
   return clean;

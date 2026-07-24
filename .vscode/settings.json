@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "**/.codex-backups": true,
+    "**/.next": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/.codex-backups": true,
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/coverage": true,
+    "**/dist": true,
+    "**/build": true
+  }
+}

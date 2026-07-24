@@ -82,6 +82,16 @@
     background: var(--cc-bg) !important;
   }
 
+  #admin-sidebar,
+  #admin-sidebar * {
+    font-family: var(--cc-font) !important;
+  }
+
+  #admin-sidebar a,
+  #admin-sidebar button {
+    border-radius: 6px !important;
+  }
+
   .admin-app-shell [class*="bg-gradient"],
   .admin-app-shell [class*="from-"],
   .admin-app-shell [class*="via-"],

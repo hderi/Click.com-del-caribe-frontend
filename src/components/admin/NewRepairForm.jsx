@@ -114,6 +114,7 @@ function createInitialState() {
     clientName: "",
     clientPhone: "",
     clientEmail: "",
+    clientType: "Particular",
     contactChannel: "whatsapp",
     deviceType: "",
     deviceOther: "",
@@ -394,10 +395,43 @@ export default function NewRepairForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdRepair, setCreatedRepair] = useState(null);
   const [repairOptions, setRepairOptions] = useState(DEFAULT_REPAIR_OPTIONS);
+  const [users, setUsers] = useState([]);
 
   const deviceTypeOptions = useMemo(() => normalizeOptions(repairOptions.tiposEquipo, DEVICE_TYPES), [repairOptions.tiposEquipo]);
   const brandOptions = useMemo(() => normalizeOptions(repairOptions.marcas, BRAND_OPTIONS), [repairOptions.marcas]);
-  const techOptions = useMemo(() => normalizeOptions(repairOptions.tecnicos, SERVICE_TECHS), [repairOptions.tecnicos]);
+  const activeUsers = useMemo(() => {
+    return Array.isArray(users)
+      ? users.filter((user) => user.activo !== false && user.active !== false && user.estado !== "Bloqueado")
+      : [];
+  }, [users]);
+
+  const techOptions = useMemo(() => {
+    return activeUsers
+      .filter((user) => {
+        const role = String(user.rol || user.role || "").toLowerCase();
+        return role === "tecnico" || role === "técnico";
+      })
+      .map((user) => {
+        const label = user.nombre || user.name || user.usuario || user.username;
+        return label ? { value: label, label } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
+  }, [activeUsers]);
+
+  const receptionOptions = useMemo(() => {
+    return activeUsers
+      .filter((user) => {
+        const role = String(user.rol || user.role || "").toLowerCase();
+        return ["ventas", "recepcion", "recepción"].includes(role);
+      })
+      .map((user) => {
+        const label = user.nombre || user.name || user.usuario || user.username;
+        return label ? { value: label, label } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
+  }, [activeUsers]);
   const contactChannelOptions = useMemo(() => normalizeOptions(repairOptions.canalesContacto, CONTACT_CHANNELS), [repairOptions.canalesContacto]);
   const authorizationOptions = useMemo(() => normalizeOptions(repairOptions.metodosAutorizacion, AUTHORIZATION_METHODS), [repairOptions.metodosAutorizacion]);
   const accessoryOptions = useMemo(() => normalizeOptions(repairOptions.accesorios, ACCESSORIES), [repairOptions.accesorios]);
@@ -438,13 +472,9 @@ export default function NewRepairForm() {
         });
         if (!response.ok) return;
         const data = await response.json();
-        const users = Array.isArray(data.usuarios) ? data.usuarios : [];
-        const next = users
-          .filter((user) => user.activo !== false && ["tecnico", "admin", "gerencia"].includes(String(user.rol || "").toLowerCase()))
-          .map((user) => ({ value: user.nombre || user.usuario, label: user.nombre || user.usuario }))
-          .filter((item) => item.value);
-        if (!ignore && next.length > 0) {
-          setRepairOptions((current) => ({ ...current, tecnicos: next }));
+        const nextUsers = Array.isArray(data.usuarios) ? data.usuarios : [];
+        if (!ignore) {
+          setUsers(nextUsers);
         }
       } catch {}
     }
@@ -505,7 +535,7 @@ export default function NewRepairForm() {
       setForm((prev) => ({ ...prev, advanceAmount: String(serviceCostNumber) }));
       setErrors((prev) => ({
         ...prev,
-        advanceAmount: "El anticipo no puede ser mayor al costo del servicio",
+        advanceAmount: "El pago recibido no puede ser mayor al costo del servicio",
       }));
       return;
     }
@@ -554,9 +584,9 @@ export default function NewRepairForm() {
     if (!form.problem.trim()) newErrors.problem = "Describe el problema reportado";
     if (!form.receivedBy.trim()) newErrors.receivedBy = "Indica quién recibió el equipo";
     if (!form.tech.trim()) newErrors.tech = "Asigna un encargado";
-    if (form.gaveAdvance === "si" && !form.advanceAmount.trim()) newErrors.advanceAmount = "Indica el monto del anticipo";
+    if (form.gaveAdvance === "si" && !form.advanceAmount.trim()) newErrors.advanceAmount = "Indica el monto recibido";
     if (advanceExceedsCost) {
-      newErrors.advanceAmount = "El anticipo no puede ser mayor al costo del servicio";
+      newErrors.advanceAmount = "El pago recibido no puede ser mayor al costo del servicio";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -573,6 +603,7 @@ export default function NewRepairForm() {
         nombre: sanitizeText(form.clientName, 120),
         telefono: sanitizePhone(form.clientPhone),
         correo: sanitizeEmail(form.clientEmail),
+        tipo: form.clientType,
       },
       equipo: {
         tipo: deviceLabel,
@@ -623,14 +654,21 @@ export default function NewRepairForm() {
         headers: { "Content-Type": "application/json", ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudo crear la reparación");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = data.detalle ? ` Detalle: ${data.detalle}` : "";
+        throw new Error(`${data.error || "No se pudo crear la reparación"}${detail}`);
+      }
 
       const repair = data.reparacion;
       const rawTrackingPath = data.seguimientoUrl || `/seguimiento/${repair.folio}`;
       const trackingUrl = /^https?:\/\//i.test(rawTrackingPath)
         ? rawTrackingPath
         : (typeof window !== "undefined" ? `${window.location.origin}${rawTrackingPath.startsWith("/") ? rawTrackingPath : `/${rawTrackingPath}`}` : rawTrackingPath);
+      const rawReceiptPath = data.mensaje?.receiptLink || `/admin/reparaciones/${repair.folio}/recibo-digital`;
+      const receiptUrl = /^https?:\/\//i.test(rawReceiptPath)
+        ? rawReceiptPath
+        : (typeof window !== "undefined" ? `${window.location.origin}${rawReceiptPath.startsWith("/") ? rawReceiptPath : `/${rawReceiptPath}`}` : rawReceiptPath);
 
       setCreatedRepair({
         folio: repair.folio,
@@ -644,6 +682,7 @@ export default function NewRepairForm() {
         entryTime: form.entryTime,
         balanceDue: repair.pago?.saldoPendiente ?? balanceDue,
         trackingUrl,
+        receiptUrl,
       });
     } catch (error) {
       setErrors((prev) => ({ ...prev, form: error.message }));
@@ -654,13 +693,13 @@ export default function NewRepairForm() {
 
   if (createdRepair) {
     const whatsappText = encodeURIComponent(
-      `Hola ${createdRepair.clientName}, tu equipo fue registrado con el folio ${createdRepair.folio}. Puedes consultar el seguimiento aquí: ${createdRepair.trackingUrl}`
+      `Hola ${createdRepair.clientName}, tu equipo fue registrado con el folio ${createdRepair.folio}.\n\nPuedes consultar el seguimiento aqui:\n${createdRepair.trackingUrl}\n\nTambien puedes consultar tu recibo digital con las politicas de servicio aqui:\n${createdRepair.receiptUrl}`
     );
     const cleanPhone = String(createdRepair.clientPhone || "").replace(/\D/g, "");
     const whatsappUrl = cleanPhone ? `https://wa.me/52${cleanPhone}?text=${whatsappText}` : "";
     const mailSubject = encodeURIComponent(`Seguimiento de reparación ${createdRepair.folio}`);
     const mailBody = encodeURIComponent(
-      `Hola ${createdRepair.clientName},\n\nTu equipo fue registrado en CLICK.COM del Caribe con el folio ${createdRepair.folio}.\nPuedes consultar el seguimiento aquí:\n${createdRepair.trackingUrl}\n\nCLICK.COM del Caribe`
+      `Hola ${createdRepair.clientName},\n\nTu equipo fue registrado en CLICK.COM del Caribe con el folio ${createdRepair.folio}.\n\nPuedes consultar el seguimiento aqui:\n${createdRepair.trackingUrl}\n\nTambien puedes consultar tu recibo digital con las politicas de servicio aqui:\n${createdRepair.receiptUrl}\n\nCLICK.COM del Caribe`
     );
     const canSendWhatsapp = Boolean(cleanPhone);
     const copyTrackingLink = async () => {
@@ -721,7 +760,7 @@ export default function NewRepairForm() {
           </div>
 
           <div className="rounded-[24px] border border-[#C9D8E5] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
-            <h3 className="text-xl font-black text-[#102033]">Siguiente paso</h3>
+  
             <p className="mt-2 text-sm leading-6 text-[#526174]">Comparte el seguimiento por el canal elegido o imprime la orden para el control interno.</p>
             <div className="mt-5 grid grid-cols-1 gap-3">
               {showWhatsapp && (
@@ -747,56 +786,78 @@ export default function NewRepairForm() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-5xl space-y-5">
-      <FormSection title="Datos del cliente" description="Información de contacto para ligar el folio al historial del cliente">
+      {errors.form && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+          {errors.form}
+        </div>
+      )}
+
+      <FormSection title="Datos del cliente" description="">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <InputField id="client-name" label="Nombre del cliente" placeholder="Nombre completo del cliente" value={form.clientName} onChange={set("clientName")} required error={errors.clientName} />
+          <InputField id="client-name" label="Nombre del cliente" placeholder="" value={form.clientName} onChange={set("clientName")} required error={errors.clientName} />
+          <SelectField
+            id="client-type"
+            label="Tipo de cliente"
+            value={form.clientType}
+            onChange={set("clientType")}
+            options={[
+              { value: "Particular", label: "Particular" },
+              { value: "Empresa", label: "Empresa" },
+            ]}
+            required
+          />
           <SelectField id="contact-channel" label="Canal de envío" value={form.contactChannel} onChange={set("contactChannel")} options={contactChannelOptions} required />
-          <InputField id="client-phone" label="Teléfono" type="tel" placeholder="Ej: 984 123 4567" value={form.clientPhone} onChange={set("clientPhone")} required={canUseWhatsapp} error={errors.clientPhone} />
-          <InputField id="client-email" label="Correo electrónico" type="email" placeholder="Ej: cliente@email.com" value={form.clientEmail} onChange={set("clientEmail")} required={canUseEmail} error={errors.clientEmail} />
+          <InputField id="client-phone" label="Teléfono" type="tel" placeholder="" value={form.clientPhone} onChange={set("clientPhone")} required={canUseWhatsapp} error={errors.clientPhone} />
+          <InputField id="client-email" label="Correo electrónico" type="email" placeholder="" value={form.clientEmail} onChange={set("clientEmail")} required={canUseEmail} error={errors.clientEmail} />
         </div>
       </FormSection>
 
-      <FormSection title="Datos del equipo" description="Información técnica mínima para identificar el dispositivo sin repetir capturas">
+      <FormSection title="Datos del equipo" description="">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectField id="device-type" label="Tipo de equipo" value={form.deviceType} onChange={set("deviceType")} options={deviceTypeOptions} placeholder="Seleccionar tipo..." required error={errors.deviceType} />
           {form.deviceType === "otro" && (
             <InputField id="device-other" label="Especificar equipo" placeholder="Ej: monitor, proyector, punto de venta" value={form.deviceOther} onChange={set("deviceOther")} required error={errors.deviceOther} />
           )}
-          <SearchableChoiceField
-            id="device-brand"
-            label="Marca"
-            placeholder="Busca o escribe la marca"
-            value={form.brand}
-            onChange={set("brand")}
-            required
-            error={errors.brand}
-            options={brandOptions}
-            allowCustom
-            customLabel="Otro"
-          />
+         <InputField
+  id="brand"
+  label="Marca"
+  placeholder=""
+  value={form.brand}
+  onChange={set("brand")}
+  required
+/>
           {form.brand === "Otro" && (
             <InputField
               id="brand-other"
               label="Especificar marca"
-              placeholder="Escribe la marca del equipo"
+              placeholder=""
               value={form.brandOther}
               onChange={set("brandOther")}
               required
               error={errors.brandOther}
             />
           )}
-          <InputField id="device-model" label="Modelo" placeholder="Ej: Inspiron 15 3520" value={form.model} onChange={set("model")} required error={errors.model} />
-          <InputField id="device-serial" label="Número de serie" placeholder="Ej: SN-XXXXX-XXXXX" value={form.serialNumber} onChange={set("serialNumber")} />
+          <InputField id="device-model" label="Modelo" placeholder="" value={form.model} onChange={set("model")} required error={errors.model} />
+          <InputField id="device-serial" label="Número de serie" placeholder="" value={form.serialNumber} onChange={set("serialNumber")} />
         </div>
       </FormSection>
 
-      <FormSection title="Falla o solicitud reportada" description="Qué reporta el cliente al dejar el equipo. El diagnóstico real se definirá después.">
-        <TextAreaField id="problem" label="Falla o solicitud reportada" value={form.problem} onChange={set("problem")} required error={errors.problem} placeholder="Ej: no enciende, pila no retiene carga, limpieza de CPU, instalación de Office, revisión general..." rows={4} />
+      <FormSection title="Falla o solicitud reportada" description="">
+        <TextAreaField id="problem" label="Falla o solicitud reportada" value={form.problem} onChange={set("problem")} required error={errors.problem} placeholder="" rows={4} />
       </FormSection>
 
-      <FormSection title="Recepción interna" description="Datos para saber quién recibió, quién autoriza y quién queda encargado">
+      <FormSection title="Recepción interna" description="">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <InputField id="received-by" label="Recibió el equipo" placeholder="Ej: Ericka" value={form.receivedBy} onChange={set("receivedBy")} required error={errors.receivedBy} />
+          <SearchableChoiceField
+            id="received-by"
+            label="Recibió el equipo"
+            value={form.receivedBy}
+            onChange={set("receivedBy")}
+            options={receptionOptions}
+            placeholder="Seleccionar quién recibió..."
+            required
+            error={errors.receivedBy}
+          />
           <InputField id="entry-time" label="Hora de entrada" type="time" value={form.entryTime} onChange={set("entryTime")} />
           <InputField id="authorized-by" label="Autoriza servicio" placeholder="Nombre de quien autoriza" value={form.authorizedBy} onChange={set("authorizedBy")} />
           <SelectField id="authorization-method" label="Medio de autorización" value={form.authorizationMethod} onChange={set("authorizationMethod")} options={authorizationOptions} />
@@ -813,64 +874,76 @@ export default function NewRepairForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Estado físico y evidencia" description="Selecciona lo visible al recibir y agrega fotos para evitar reclamos posteriores.">
+      <FormSection title="Estado físico y evidencia" description="">
         <div className="flex flex-wrap gap-3">
           {conditionOptions.map((item) => (
             <CheckChip key={item.id} id={`condition-${item.id}`} label={item.label} checked={form.physicalConditions.includes(item.id)} onChange={() => toggleList("physicalConditions", item.id)} />
           ))}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <TextAreaField id="observations" label="Observaciones de recepción" value={form.observations} onChange={set("observations")} placeholder="Ej: equipo rayado, bisagra floja, no trae cargador, pantalla golpeada..." rows={5} />
+          <TextAreaField
+           id="observations"
+           label="Observaciones de recepción"
+           value={form.observations}
+           onChange={set("observations")}
+           placeholder=""
+            rows={5}
+/>
           <PhotoDropPreview files={form.receptionPhotos} onChange={handlePhotos} />
         </div>
       </FormSection>
 
-      <FormSection title="Accesorios recibidos" description="Elementos entregados junto con el equipo">
+      <FormSection title="Accesorios recibidos" description="">
         <div className="flex flex-wrap gap-3">
           {accessoryOptions.map((item) => (
             <CheckChip key={item.id} id={`accessory-${item.id}`} label={item.label} checked={form.accessories.includes(item.id)} onChange={() => toggleList("accessories", item.id)} />
           ))}
         </div>
         <div className="mt-4 max-w-md">
-          <InputField id="accessory-other" label="Otro accesorio" placeholder="Ej: funda, adaptador, memoria USB" value={form.accessoryOther} onChange={set("accessoryOther")} />
-        </div>
+        <InputField id="accessory-other" label="Otro accesorio" placeholder="" value={form.accessoryOther} onChange={set("accessoryOther")} />        </div>
       </FormSection>
 
       <div className="overflow-hidden rounded-[18px] border border-[#DDEAF2] bg-[#F8FAFC] shadow-[0_18px_44px_rgba(15,50,80,0.10)]">
         <div className="flex items-center gap-3 border-b border-[#E5EEF6] bg-white/70 px-6 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EAF8FE] font-black text-[#0077B6]">$</div>
           <div>
-            <h3 className="m-0 text-[15px] font-black text-[#0F172A]">Pago y anticipo</h3>
-            <p className="m-0 mt-1 text-xs font-bold text-[#64748B]">Registro inicial del costo, anticipo y forma de pago</p>
+            <h3 className="m-0 text-[15px] font-black text-[#0F172A]">Pago</h3>
+            
           </div>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <InputField id="service-cost" label="Costo del servicio" type="number" min="0" step="0.01" placeholder="Ej: 1200.00" value={form.serviceCost} onChange={set("serviceCost")} light />
-            <SelectField id="gave-advance" label="Dio anticipo" value={form.gaveAdvance} onChange={set("gaveAdvance")} options={YES_NO_OPTIONS} light />
-            <InputField id="advance-amount" label="Monto de anticipo" type="number" min="0" step="0.01" placeholder="Ej: 500.00" value={form.advanceAmount} onChange={setAdvanceAmount} disabled={!hasAdvance} required={hasAdvance} error={errors.advanceAmount} max={form.serviceCost || undefined} light />
+            <InputField id="service-cost" label="Costo del servicio" type="number" min="0" step="0.01" placeholder="" value={form.serviceCost} onChange={set("serviceCost")} light />
+            <SelectField id="gave-advance" label="Registró pago" value={form.gaveAdvance} onChange={set("gaveAdvance")} options={YES_NO_OPTIONS} light />
+            <InputField id="advance-amount" label="Pago recibido" type="number" min="0" step="0.01" placeholder="" value={form.advanceAmount} onChange={setAdvanceAmount} disabled={!hasAdvance} required={hasAdvance} error={errors.advanceAmount} max={form.serviceCost || undefined} light />
             <SelectField id="payment-method" label="Cómo se pagó" value={form.paymentMethod} onChange={set("paymentMethod")} options={paymentOptions} disabled={!hasAdvance} light />
             <SelectField id="invoice-required" label="Factura" value={form.invoiceRequired} onChange={set("invoiceRequired")} options={YES_NO_OPTIONS} light />
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]">
-            <TextAreaField id="payment-notes" label="Notas de pago" value={form.paymentNotes} onChange={set("paymentNotes")} placeholder={hasAdvance ? "Referencia, transferencia, pago con tarjeta, etc." : "Se activa cuando hay anticipo"} rows={3} disabled={!hasAdvance} />
+            <TextAreaField id="payment-notes" label="Notas de pago" value={form.paymentNotes} onChange={set("paymentNotes")} placeholder={hasAdvance ? "Referencia, transferencia, pago con tarjeta, etc." : "Se activa cuando hay pago recibido"} rows={3} disabled={!hasAdvance} />
             <div className="rounded-2xl border border-[rgba(180,95,34,0.22)] bg-[#F7F2EC] p-4 shadow-[0_0_24px_rgba(180,95,34,0.08)]">
               <p className="m-0 text-[11px] font-black uppercase tracking-[0.12em] text-[#64748B]">Saldo pendiente</p>
               <p className="m-0 mt-2 text-3xl font-black text-[#B45F22]">${money(balanceDue)}</p>
-              <p className="m-0 mt-2 text-xs font-bold leading-5 text-[#64748B]">Se calcula con costo del servicio menos anticipo.</p>
+              <p className="m-0 mt-2 text-xs font-bold leading-5 text-[#64748B]">Se calcula con costo del servicio menos pago recibido.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <FormSection title="Garantía e información adicional" description="Datos que ayudan al técnico, a la entrega y al cierre del folio">
+      <FormSection title="Garantía e información adicional" description="">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <PasswordVisibleField id="device-password" label="Contraseña del equipo" placeholder="Opcional" value={form.devicePassword} onChange={set("devicePassword")} />
+         <InputField
+    id="device-password"
+    label="Contraseña del equipo"
+    placeholder="Opcional"
+    value={form.devicePassword}
+    onChange={set("devicePassword")}
+  />
           <InputField id="date-in" label="Fecha de ingreso" type="date" value={form.dateIn} onChange={set("dateIn")} required />
           <InputField id="date-estimated" label="Fecha entrega estimada" type="date" value={form.dateEstimated} onChange={set("dateEstimated")} />
           <SelectField id="warranty-applies" label="Garantía" value={form.warrantyApplies} onChange={set("warrantyApplies")} options={guaranteeOptions} />
           <InputField id="warranty-days" label="Días de garantía" type="number" min="0" placeholder="Ej: 7" value={form.warrantyDays} onChange={set("warrantyDays")} disabled={warrantyDisabled} />
-          <InputField id="warranty-notes" label="Nota de garantía" placeholder="Ej: no aplica por software" value={form.warrantyNotes} onChange={set("warrantyNotes")} />
+          <InputField id="warranty-notes" label="Nota de garantía" placeholder="" value={form.warrantyNotes} onChange={set("warrantyNotes")} />
         </div>
       </FormSection>
 
@@ -881,11 +954,3 @@ export default function NewRepairForm() {
     </form>
   );
 }
-
-
-
-
-
-
-
-

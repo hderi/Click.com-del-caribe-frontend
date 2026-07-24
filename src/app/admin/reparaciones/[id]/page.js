@@ -16,6 +16,7 @@ function statusLabel(status) {
     esperando_refaccion: "Esperando refacción",
     finalizado: "Finalizado",
     entregado: "Entregado",
+    cancelado: "Cancelado",
   };
 
   return labels[status] || status || "Recibido";
@@ -31,6 +32,32 @@ function mapRepair(data, mensaje) {
 
   return {
     folio: data.folio,
+    id: data.folio,
+    cliente,
+    equipo,
+    pago: data.pago || {},
+    anticipo: data.anticipo || {},
+    garantia: data.garantia || {},
+    autorizacion: data.autorizacion || {},
+    historial,
+    fotos: data.fotos || [],
+    fotosRecepcion: equipo.fotosRecepcion || data.fotosRecepcion || [],
+    estado: data.estado || "recibido",
+    tecnico: data.tecnico || "",
+    recibidoPor: data.recibidoPor || data.creadoPorNombre || "",
+    horaEntrada: data.horaEntrada || "",
+    fechaIngreso: data.fechaIngreso || data.creadoEn || "",
+    fechaEntregaEstimada: data.fechaEntregaEstimada || "",
+    fallaReportada: data.fallaReportada || "",
+    observacionesRecepcion: data.observacionesRecepcion || equipo.observacionesRecepcion || "",
+    observacionesCliente: data.observacionesCliente || "",
+    canalContacto: data.canalContacto || "",
+    estadoFisico: equipo.estadoFisico || data.estadoFisico || [],
+    accesorios: equipo.accesorios || data.accesorios || [],
+    marca: equipo.marca || "",
+    modelo: equipo.modelo || "",
+    tipoEquipo: equipo.tipo || "",
+    numeroSerie: equipo.serie || "",
     client: cliente.nombre || "Sin cliente",
     phone: cliente.telefono || "Sin teléfono",
     email: cliente.correo || "",
@@ -65,6 +92,8 @@ function mapRepair(data, mensaje) {
       color:
         item.estado === "entregado"
           ? "#22C55E"
+          : item.estado === "cancelado"
+            ? "#BE123C"
           : item.estado === "en_reparacion"
             ? "#0066FF"
             : "#FF6B2C",
@@ -113,5 +142,5 @@ export default function RepairDetailPage({ params }) {
     );
   }
 
-  return <RepairDetail repair={repair} />;
+  return <RepairDetail repair={repair} initialView={searchParams.get("vista") || "ficha"} onRepairUpdated={setRepair} />;
 }

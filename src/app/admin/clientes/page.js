@@ -4,6 +4,9 @@ import { getToken } from "@/lib/authStorage";
 import { useEffect, useMemo, useState } from "react";
 import ClientsHeader from "@/components/admin/ClientsHeader";
 import ClientsTable from "@/components/admin/ClientsTable";
+import ClientForm from "@/components/admin/ClientForm";
+import ClientsError from "@/components/admin/ClientsError";
+import ClientsStats from "@/components/admin/ClientsStats";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -206,71 +209,17 @@ export default function ClientesPage() {
       />
 
       {showForm && (
-        <section className="rounded-[24px] border border-[#C9D8E5] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF7A00]">Alta manual</p>
-              <h2 className="text-2xl font-black tracking-[-0.02em] text-[#102033]">Nuevo cliente</h2>
-              <p className="mt-1 text-sm text-[#526174]">Úsalo cuando quieras registrar un cliente antes de crear una reparación.</p>
-            </div>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-[#C9D8E5] px-4 py-2 text-sm font-black text-[#526174] hover:bg-[#EEF5FA]">
-              Cancelar
-            </button>
-          </div>
-
-          <form onSubmit={saveClient} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="grid gap-2 text-sm font-black text-[#102033]">
-              Nombre del cliente *
-              <input value={form.nombre} onChange={(event) => updateForm("nombre", event.target.value)} className="h-12 rounded-2xl border border-[#BFD0DF] bg-[#F8FBFD] px-4 text-sm font-semibold outline-none focus:border-[#00A8E8]" placeholder="Ej. María López" />
-            </label>
-            <label className="grid gap-2 text-sm font-black text-[#102033]">
-              Teléfono *
-              <input value={form.telefono} onChange={(event) => updateForm("telefono", event.target.value)} className="h-12 rounded-2xl border border-[#BFD0DF] bg-[#F8FBFD] px-4 text-sm font-semibold outline-none focus:border-[#00A8E8]" placeholder="Ej. 984 123 4567" />
-            </label>
-            <label className="grid gap-2 text-sm font-black text-[#102033]">
-              Correo
-              <input value={form.email} onChange={(event) => updateForm("email", event.target.value)} className="h-12 rounded-2xl border border-[#BFD0DF] bg-[#F8FBFD] px-4 text-sm font-semibold outline-none focus:border-[#00A8E8]" placeholder="correo@ejemplo.com" />
-            </label>
-            <label className="grid gap-2 text-sm font-black text-[#102033]">
-              Tipo
-              <select value={form.tipo} onChange={(event) => updateForm("tipo", event.target.value)} className="h-12 rounded-2xl border border-[#BFD0DF] bg-[#F8FBFD] px-4 text-sm font-semibold outline-none focus:border-[#00A8E8]">
-                <option>Particular</option>
-                <option>Empresa</option>
-              </select>
-            </label>
-            <label className="md:col-span-2 xl:col-span-3 grid gap-2 text-sm font-black text-[#102033]">
-              Nota interna
-              <input value={form.nota} onChange={(event) => updateForm("nota", event.target.value)} className="h-12 rounded-2xl border border-[#BFD0DF] bg-[#F8FBFD] px-4 text-sm font-semibold outline-none focus:border-[#00A8E8]" placeholder="Ej. prefiere WhatsApp, requiere factura, cliente frecuente..." />
-            </label>
-            <div className="flex items-end">
-              <button disabled={saving} className="h-12 w-full rounded-2xl bg-[#FF7A00] px-5 text-sm font-black text-white shadow-[0_12px_24px_rgba(255,122,0,0.22)] hover:bg-[#E66A00] disabled:opacity-60">
-                {saving ? "Guardando..." : "Guardar cliente"}
-              </button>
-            </div>
-          </form>
-        </section>
+        <ClientForm
+          form={form}
+          saving={saving}
+          onChange={updateForm}
+          onSubmit={saveClient}
+          onCancel={() => setShowForm(false)}
+        />
       )}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {stats.map((item) => (
-          <div key={item.label} className="rounded-2xl border border-[#C9D8E5] bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.07)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#526174]">{item.label}</p>
-                <p className="mt-1 text-3xl font-black" style={{ color: item.color }}>{item.count}</p>
-                <p className="mt-1 text-xs leading-5 text-[#526174]">{item.note}</p>
-              </div>
-              <span className="mt-1 h-3 w-3 rounded-full" style={{ background: item.color, boxShadow: `0 0 0 6px ${item.color}18` }} />
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {error && (
-        <div className="rounded-2xl border border-[#F3B5A7] bg-[#FFF2EE] px-4 py-3 text-sm font-black text-[#9A3412]">
-          {error}
-        </div>
-      )}
+      <ClientsStats stats={stats} />
+      <ClientsError message={error} />
 
       <ClientsTable clients={filteredClients} loading={loading} onNewClient={() => setShowForm(true)} />
     </div>
