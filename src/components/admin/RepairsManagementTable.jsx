@@ -314,7 +314,7 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
                     </svg>
                   </div>
                   <p className="text-sm font-black text-[#102033]">No se encontraron reparaciones</p>
-                  <p className="mt-1 text-sm text-[#526174]">Intenta cambiar la vista o buscar por folio, cliente o equipo.</p>
+                  
                 </td>
               </tr>
             ) : null}
@@ -324,7 +324,7 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
 
       <div className="flex items-center justify-between border-t border-[#E5E7EB] px-5 py-3.5 sm:px-6">
         <p className="text-xs font-bold text-[#526174]">Mostrando {repairs.length} reparaciones</p>
-        <p className="text-xs text-[#6B7C90]">Informacion guardada en el sistema</p>
+       
       </div>
     </div>
   );

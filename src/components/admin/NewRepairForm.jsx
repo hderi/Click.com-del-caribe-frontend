@@ -14,7 +14,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const DEVICE_TYPES = [
   { value: "laptop", label: "Laptop" },
-  { value: "pc", label: "PC / CPU" },
   { value: "all_in_one", label: "All in One" },
   { value: "impresora", label: "Impresora" },
   { value: "otro", label: "Otro" },
@@ -41,9 +40,7 @@ const CONTACT_CHANNELS = [
 
 const AUTHORIZATION_METHODS = [
   { value: "presencial", label: "Presencial" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "llamada", label: "Llamada" },
-  { value: "correo", label: "Correo" },
+
 ];
 
 const ACCESSORIES = [
@@ -175,7 +172,7 @@ function CheckChip({ id, label, checked, onChange }) {
   return (
     <label
       htmlFor={id}
-      className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
+      className={`relative flex cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
         checked
           ? "border-[#FF9F43] bg-[#FFF4E8] text-[#5F3200] shadow-[0_8px_18px_rgba(255,122,0,0.12)]"
           : "border-[#D5E2EC] bg-white text-[#334155] hover:border-[#BFD0DF] hover:bg-[#F8FBFD]"
@@ -188,7 +185,7 @@ function CheckChip({ id, label, checked, onChange }) {
           </svg>
         )}
       </span>
-      <input id={id} type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+      <input id={id} type="checkbox" checked={checked} onChange={onChange} className="hidden" />
       {label}
     </label>
   );
@@ -355,7 +352,6 @@ function PasswordVisibleField({ id, label, value, onChange, placeholder }) {
     </div>
   );
 }
-
 function PhotoDropPreview({ files, onChange }) {
   return (
     <div className="rounded-2xl border border-dashed border-[#BFD0DF] bg-[#F8FBFD] p-4">
@@ -368,11 +364,22 @@ function PhotoDropPreview({ files, onChange }) {
             </p>
           </div>
           <span className="rounded-xl border border-[#C9D8E5] bg-white px-4 py-2 text-xs font-black text-[#24566F]">
-            Seleccionar fotos
+            Tomar foto / Seleccionar
           </span>
         </div>
       </label>
-      <input id="reception-photos" type="file" accept="image/*" multiple className="sr-only" onChange={onChange} />
+      
+      {/* Agregamos capture="environment" para disparar la cámara en móviles */}
+      <input 
+        id="reception-photos" 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        multiple 
+        className="hidden" 
+        onChange={onChange} 
+      />
+
       {files.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {files.map((file, index) => (
@@ -426,7 +433,7 @@ export default function NewRepairForm() {
     return activeUsers
       .filter((user) => {
         const role = String(user.rol || user.role || "").toLowerCase();
-        return ["ventas", "recepcion", "recepción"].includes(role);
+        return ["ventas", "recepcion", "recepción", "tecnico", "técnico"].includes(role);
       })
       .map((user) => {
         const label = user.nombre || user.name || user.usuario || user.username;
@@ -948,8 +955,7 @@ export default function NewRepairForm() {
           />
           <InputField id="entry-time" label="Hora de entrada" type="time" value={form.entryTime} onChange={set("entryTime")} />
           <InputField id="authorized-by" label="Autoriza servicio" placeholder="Nombre de quien autoriza" value={form.authorizedBy} onChange={set("authorizedBy")} />
-          <SelectField id="authorization-method" label="Medio de autorización" value={form.authorizationMethod} onChange={set("authorizationMethod")} options={authorizationOptions} />
-          <SearchableChoiceField
+          <InputField id="authorization-method" label="Medio de autorización" value="Presencial" disabled={true} />          <SearchableChoiceField
             id="repair-tech"
             label="Encargado del servicio"
             value={form.tech}
@@ -1008,7 +1014,7 @@ export default function NewRepairForm() {
             <SelectField id="invoice-required" label="Factura" value={form.invoiceRequired} onChange={set("invoiceRequired")} options={YES_NO_OPTIONS} light />
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]">
-            <TextAreaField id="payment-notes" label="Notas de pago" value={form.paymentNotes} onChange={set("paymentNotes")} placeholder={hasAdvance ? "Referencia, transferencia, pago con tarjeta, etc." : "Se activa cuando hay pago recibido"} rows={3} disabled={!hasAdvance} />
+            <TextAreaField id="payment-notes" label="Notas de pago" value={form.paymentNotes} onChange={set("paymentNotes")} placeholder={hasAdvance ? "" : "Se activa cuando hay pago recibido"} rows={3} disabled={!hasAdvance} />
             <div className="rounded-2xl border border-[rgba(180,95,34,0.22)] bg-[#F7F2EC] p-4 shadow-[0_0_24px_rgba(180,95,34,0.08)]">
               <p className="m-0 text-[11px] font-black uppercase tracking-[0.12em] text-[#64748B]">Saldo pendiente</p>
               <p className="m-0 mt-2 text-3xl font-black text-[#B45F22]">${money(balanceDue)}</p>

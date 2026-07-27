@@ -486,7 +486,7 @@ export default function GarantiasPage() {
         <div className="flex flex-col gap-4 border-b border-[#E5E7EB] px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-[18px] font-bold tracking-[-0.01em]">Listado de garantías</h2>
-            <p className="mt-1 text-[13px] font-medium text-[#526174]">Cada garantía conserva su folio GT y su relación con la orden RX original.</p>
+            
           </div>
           <label className="flex h-11 items-center gap-3 rounded-[6px] border border-[#D1D5DB] bg-white px-3">
             <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#6B7280]">Vista</span>

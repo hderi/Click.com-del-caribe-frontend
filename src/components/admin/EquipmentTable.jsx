@@ -44,9 +44,6 @@ export default function EquipmentTable({ equipment, loading = false }) {
     return (
       <div className="rounded-[24px] border border-[#C9D8E5] bg-white p-12 text-center shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
         <p className="text-base font-black text-[#102033]">Aun no hay equipos registrados</p>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#526174]">
-          Aqui apareceran los equipos cuando registres una reparacion o captures un dispositivo manualmente.
-        </p>
       </div>
     );
   }

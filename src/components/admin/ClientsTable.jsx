@@ -62,9 +62,7 @@ export default function ClientsTable({ clients, loading = false, onNewClient }) 
           </svg>
         </div>
         <p className="text-base font-black text-[#102033]">Aún no hay clientes registrados</p>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#526174]">
-          Aquí aparecerán los clientes cuando los des de alta manualmente o cuando se cree una nueva reparación con sus datos.
-        </p>
+
         <button type="button" onClick={onNewClient} className="mt-5 rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(255,122,0,0.22)] hover:bg-[#E66A00]">
           Dar de alta cliente
         </button>

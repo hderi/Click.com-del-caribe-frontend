@@ -17,9 +17,7 @@ export default function NuevaReparacionPage() {
             </Link>
             <h1 className="text-2xl font-bold text-text-primary">Nueva reparación</h1>
           </div>
-          <p className="text-sm text-text-secondary">
-            Registrar una nueva orden de servicio
-          </p>
+  
         </div>
         <p className="text-xs text-text-muted">
           Los campos con <span className="text-brand-orange">*</span> son obligatorios

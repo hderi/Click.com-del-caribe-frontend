@@ -197,7 +197,7 @@ export default function SeguimientoPage() {
             type="text"
             value={folio}
             onChange={(e) => setFolio(e.target.value)}
-            placeholder="Ej. CC-0245"
+            placeholder="Ej. Rx-000"
             className="w-full border-b-2 border-[#0F1F4A]/30 bg-transparent px-1 py-3 text-[16px] font-bold text-[#0F1F4A] placeholder:font-medium placeholder:text-[#94A3B8] focus:border-[#0F1F4A] focus:outline-none"
           />
           <button

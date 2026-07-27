@@ -353,7 +353,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <Panel title="Flujo por estado" subtitle="Distribución actual de las órdenes de trabajo.">
+        <Panel title="Flujo por estado" subtitle="">
           <div className="mt-5 min-h-[280px] border border-[var(--dash-line)] bg-white px-6 py-7">
             <div className="flex h-full min-h-[225px] items-end gap-6">
               {barras.map((bar) => (
@@ -378,13 +378,13 @@ export default function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Resumen del día" subtitle="Basado en el rango de fechas seleccionado.">
+        <Panel title="Resumen del día" subtitle="">
           <DaySummary resumenDia={resumenDia} />
         </Panel>
       </section>
 
       <section>
-        <Panel title="Órdenes recientes" subtitle="Últimas órdenes registradas en el sistema.">
+        <Panel title="Órdenes recientes" subtitle="">
           {recientes.length === 0 ? (
             <div className="mt-5 border border-dashed border-[var(--dash-line)] bg-white p-8 text-center text-[13px] font-medium text-[var(--dash-dim)]">
               Todavía no hay órdenes registradas.
@@ -444,7 +444,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <Panel title="Carga por técnico" subtitle="Órdenes activas asignadas.">
+        <Panel title="Carga por técnico" subtitle="">
           <div className="mt-5 space-y-4">
             {data.tecnicos.length === 0 ? (
               <div className="border border-dashed border-[var(--dash-line)] bg-white p-5 text-[13px] font-medium text-[var(--dash-dim)]">

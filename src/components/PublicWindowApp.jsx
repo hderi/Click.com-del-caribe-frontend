@@ -83,7 +83,7 @@ function whatsapp(phone, text) {
 function BrandMark({ light = false }) {
   return (
     <img
-      src="/logos/logo-principal.png.png"
+      src="public/logo-clickcom.png.png"
       alt="CLICK.COM del Caribe"
       className={light ? "h-10 w-auto object-contain brightness-0 invert" : "h-14 w-auto object-contain sm:h-16"}
     />
@@ -579,7 +579,7 @@ export default function PublicWindowApp() {
           <div className="flex items-start gap-5">
             <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#0F1F4A0d] sm:h-28 sm:w-28">
               <img
-                src="/Servicios/internet-wisp.png"
+                src="/Servicios/wisp.png"
                 alt="Internet WISP"
                 className="h-full w-full object-contain p-2"
                 onError={(e) => {
