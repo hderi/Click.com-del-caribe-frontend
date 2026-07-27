@@ -364,17 +364,16 @@ function PhotoDropPreview({ files, onChange }) {
             </p>
           </div>
           <span className="rounded-xl border border-[#C9D8E5] bg-white px-4 py-2 text-xs font-black text-[#24566F]">
-            Tomar foto / Seleccionar
+            Tomar o elegir fotos
           </span>
         </div>
       </label>
       
-      {/* Agregamos capture="environment" para disparar la cámara en móviles */}
+      {/* Quitamos capture="environment" para que el celular permita elegir entre cámara y galería */}
       <input 
         id="reception-photos" 
         type="file" 
         accept="image/*" 
-        capture="environment" 
         multiple 
         className="hidden" 
         onChange={onChange} 
