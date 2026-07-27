@@ -1,6 +1,7 @@
 "use client";
 
 import { clearSession, getToken, logoutToLogin } from "@/lib/authStorage";
+import { getPaymentStatus, hasPendingPayment } from "@/lib/paymentStatus";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
@@ -109,6 +110,17 @@ function buildNotifications(repairs = []) {
         type: "warning",
         title: "Sin movimiento reciente",
         text: `${titleBase}. Revisar avance tecnico.`,
+        href,
+      });
+    }
+
+    if (hasPendingPayment(repair)) {
+      const pago = getPaymentStatus(repair);
+      notices.push({
+        key: `${repair.folio}-pago`,
+        type: "warning",
+        title: "Pago pendiente",
+        text: `${titleBase}. Saldo por liquidar: $${Number(pago.saldo || 0).toLocaleString("es-MX")}.`,
         href,
       });
     }

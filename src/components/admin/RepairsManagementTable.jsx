@@ -5,6 +5,8 @@ import Link from "next/link";
 import { getToken } from "@/lib/authStorage";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const SIGNED_RECEIPT_ACCEPT = "image/png,image/jpeg,image/webp";
+const SIGNED_RECEIPT_EXTENSIONS = ".png, .jpg, .jpeg o .webp";
 
 const statusLabels = {
   recibido: "Recibido",
@@ -63,6 +65,23 @@ function fileToDataUrl(file) {
   });
 }
 
+function hasSignedReceipt(repair) {
+  return Boolean(
+    repair?.signedReceiptUrl ||
+      repair?.reciboFirmadoUrl ||
+      repair?.documentos?.reciboFirmado?.url ||
+      repair?.documentos?.reciboFirmado?.path
+  );
+}
+
+function isAllowedSignedReceipt(file) {
+  if (!file) return false;
+  const type = String(file.type || "").toLowerCase();
+  const mimeOk = ["image/png", "image/jpeg", "image/webp"].includes(type);
+  const extOk = /\.(png|jpe?g|webp)$/i.test(file.name || "");
+  return mimeOk || extOk;
+}
+
 function WhatsAppIcon() {
   return (
     <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -97,6 +116,14 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (!isAllowedSignedReceipt(file)) {
+      alert(`Solo se permiten archivos ${SIGNED_RECEIPT_EXTENSIONS}.`);
+      return;
+    }
+    if (hasSignedReceipt(repair)) {
+      const confirmed = window.confirm("Ya existe un recibo firmado para este folio. Si subes otro, el anterior se reemplazara. ¿Continuar?");
+      if (!confirmed) return;
+    }
     setUploadingReceipt(repair.folio);
     try {
       const dataUrl = await fileToDataUrl(file);
@@ -160,6 +187,7 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Fecha</th>
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Recibio</th>
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Estado</th>
+              <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Pago</th>
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Tecnico</th>
               <th className="px-3 py-3 text-left text-[11px] font-black uppercase tracking-[0.12em] text-[#526174]">Actualizar</th>
               <th className="px-5 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-[#526174] sm:px-6">Acciones</th>
@@ -204,6 +232,9 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
                   <td className="px-3 py-4 text-sm font-bold text-[#334155]">{repair.date}</td>
                   <td className="px-3 py-4 text-sm font-bold text-[#334155]">{repair.receivedBy || "Sin registrar"}</td>
                   <td className="px-3 py-4"><StatusPill status={repair.status} /></td>
+                  <td className="px-3 py-4">
+                    <PaymentPill status={repair.paymentStatus} />
+                  </td>
                   <td className="px-3 py-4 text-sm font-bold text-[#334155]">{repair.tech}</td>
                   <td className="px-3 py-4">
                     {isClosed ? (
@@ -249,7 +280,7 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
                           </Link>
                           <label className="block cursor-pointer px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]">
                             {uploadingReceipt === repair.folio ? "Subiendo..." : "Subir recibo firmado"}
-                            <input type="file" accept="image/*" className="hidden" onChange={(event) => uploadSignedReceipt(repair, event)} />
+                            <input type="file" accept={SIGNED_RECEIPT_ACCEPT} className="hidden" onChange={(event) => uploadSignedReceipt(repair, event)} />
                           </label>
                           {repair.signedReceiptUrl ? (
                             <a className="block px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" href={repair.signedReceiptUrl} target="_blank" rel="noreferrer" onClick={() => setOpenDocsMenu("")}>
@@ -276,7 +307,7 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
             })}
             {(!repairs || repairs.length === 0) ? (
               <tr>
-                <td colSpan={9} className="px-6 py-12 text-center">
+                <td colSpan={10} className="px-6 py-12 text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E3F5FC] text-[#0077B6]">
                     <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -311,5 +342,19 @@ function IconAction({ title, color, onClick, children }) {
     >
       {children}
     </button>
+  );
+}
+
+function PaymentPill({ status }) {
+  const item = status || { label: "Sin pago", color: "#64748B", saldo: 0 };
+  return (
+    <span
+      className="inline-flex flex-col rounded-[6px] border bg-white px-3 py-1.5 text-xs font-black"
+      style={{ color: item.color, borderColor: `${item.color}55`, backgroundColor: `${item.color}10` }}
+      title={item.saldo > 0 ? `Saldo pendiente: $${Number(item.saldo).toLocaleString("es-MX")}` : item.label}
+    >
+      <span>{item.label}</span>
+      {item.saldo > 0 ? <span className="mt-0.5 text-[10px] font-bold opacity-80">Falta ${Number(item.saldo).toLocaleString("es-MX")}</span> : null}
+    </span>
   );
 }

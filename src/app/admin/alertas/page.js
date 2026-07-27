@@ -1,6 +1,7 @@
 "use client";
 
 import { getToken } from "@/lib/authStorage";
+import { hasPendingPayment } from "@/lib/paymentStatus";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -14,6 +15,7 @@ const VIEW_OPTIONS = [
   { value: "vencidas", label: "Vencidas" },
   { value: "sinMovimiento", label: "Sin movimiento" },
   { value: "sinRecoger", label: "Sin recoger" },
+  { value: "pagosPendientes", label: "Pagos pendientes" },
 ];
 
 const statusLabels = {
@@ -119,11 +121,11 @@ export default function AlertasPage() {
     const now = new Date();
     const todayValue = today();
     const abiertas = reparaciones.filter((item) => !CLOSED_STATUS.has(String(item.estado || "").toLowerCase()));
-    const enRango = reparaciones.filter((item) => {
+    const enRango = abiertas.filter((item) => {
       const fecha = dateOnly(item.fechaEntregaEstimada || item.fechaIngreso || item.creadoEn);
       return fecha && (!inicio || fecha >= inicio) && (!fin || fecha <= fin);
     });
-    const paraHoy = reparaciones.filter((item) => dateOnly(item.fechaEntregaEstimada) === todayValue);
+    const paraHoy = abiertas.filter((item) => dateOnly(item.fechaEntregaEstimada) === todayValue);
     const vencidas = abiertas.filter((item) => {
       const fecha = dateOnly(item.fechaEntregaEstimada);
       return fecha && fecha < todayValue;
@@ -134,9 +136,10 @@ export default function AlertasPage() {
       const date = parseDate(last);
       return date ? daysBetween(now, date) > 3 : false;
     });
-    const sinRecoger = reparaciones.filter((item) => READY_STATUS.has(String(item.estado || "").toLowerCase()));
+    const sinRecoger = abiertas.filter((item) => READY_STATUS.has(String(item.estado || "").toLowerCase()));
+    const pagosPendientes = abiertas.filter((item) => hasPendingPayment(item));
 
-    return { enRango, paraHoy, vencidas, sinMovimiento, sinRecoger };
+    return { enRango, paraHoy, vencidas, sinMovimiento, sinRecoger, pagosPendientes };
   }, [reparaciones, inicio, fin]);
 
   const current = {
@@ -145,20 +148,17 @@ export default function AlertasPage() {
     vencidas: data.vencidas,
     sinMovimiento: data.sinMovimiento,
     sinRecoger: data.sinRecoger,
+    pagosPendientes: data.pagosPendientes,
   }[view] || data.enRango;
 
   return (
     <main className="space-y-5 text-[#0A0A0A]" style={{ fontFamily: "var(--cc-font), Inter, Arial, sans-serif" }}>
       <section className="overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-white">
         <div className="flex flex-col gap-5 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF6B00]">Operacion del taller</p>
-            <h1 className="mt-1.5 text-[24px] font-bold tracking-[-0.02em] text-[#0A0A0A]">Agenda y recordatorios</h1>
-            <p className="mt-2 text-[13px] font-semibold text-[#4B5563]">
-              {loading ? "Cargando datos" : `${reparaciones.length} ordenes registradas en el sistema.`}
-            </p>
-          </div>
-
+  
+    
+            
+  
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
             <DateField label="Desde" value={inicio} onChange={(event) => setInicio(event.target.value)} />
             <DateField label="Hasta" value={fin} onChange={(event) => setFin(event.target.value)} />
@@ -183,6 +183,7 @@ export default function AlertasPage() {
             <SummaryCell label="Vencidas" note="Revisar atraso" value={data.vencidas.length} color="#C55A11" />
             <SummaryCell label="Sin movimiento" note="Mas de 3 dias" value={data.sinMovimiento.length} color="#B45309" />
             <SummaryCell label="Sin recoger" note="Listas" value={data.sinRecoger.length} color="#16854E" />
+            <SummaryCell label="Pagos pendientes" note="Por liquidar" value={data.pagosPendientes.length} color="#7C3AED" />
           </div>
         </div>
       </section>
@@ -193,7 +194,7 @@ export default function AlertasPage() {
         <div className="flex flex-col gap-4 border-b border-[#E5E7EB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <h2 className="text-[18px] font-bold tracking-[-0.01em] text-[#0A0A0A]">Ordenes por revisar</h2>
-            <p className="mt-1 text-[13px] text-[#6B7280]">Selecciona la vista para revisar entregas, pendientes y recordatorios sin cambiar de modulo.</p>
+            
           </div>
 
           <label className="flex w-full max-w-[280px] items-center gap-3 rounded-[6px] border border-[#D1D5DB] bg-white px-3 py-2">
@@ -211,13 +212,14 @@ export default function AlertasPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[1040px]">
             <thead className="bg-[#F8FAFC]">
               <tr>
                 <Th>Folio</Th>
                 <Th>Cliente</Th>
                 <Th>Equipo</Th>
                 <Th>Estado</Th>
+                <Th>Fecha entrada</Th>
                 <Th>Entrega estimada</Th>
                 <Th>Tecnico</Th>
               </tr>
@@ -236,13 +238,14 @@ export default function AlertasPage() {
                   </td>
                   <td className="px-4 py-4 text-sm font-semibold text-[#334155]">{equipmentName(item)}</td>
                   <td className="px-4 py-4"><StatusBadge estado={item.estado} /></td>
+                  <td className="px-4 py-4 text-sm font-bold text-[#334155]">{dateOnly(item.fechaIngreso || item.creadoEn) || "Sin fecha"}</td>
                   <td className="px-4 py-4 text-sm font-bold text-[#334155]">{dateOnly(item.fechaEntregaEstimada) || "Sin fecha"}</td>
                   <td className="px-4 py-4 text-sm font-bold text-[#334155]">{item.tecnico || "Sin asignar"}</td>
                 </tr>
               ))}
               {!loading && !current.length ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm font-bold text-[#6B7280]">
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm font-bold text-[#6B7280]">
                     No hay ordenes en esta vista.
                   </td>
                 </tr>

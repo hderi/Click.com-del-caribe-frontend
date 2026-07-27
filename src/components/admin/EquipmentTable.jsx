@@ -55,9 +55,7 @@ export default function EquipmentTable({ equipment, loading = false }) {
     <div className="overflow-hidden rounded-[24px] border border-[#C9D8E5] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
       <div className="flex flex-col gap-2 border-b border-[#C9D8E5] px-5 py-4 sm:px-6">
         <h2 className="text-xl font-black tracking-[-0.02em] text-[#102033]">Listado de equipos</h2>
-        <p className="text-sm text-[#526174]">
-          El equipo guarda su propio historial aunque cambie de reparacion o vuelva al taller meses despues.
-        </p>
+
       </div>
 
       <div className="overflow-x-auto">
@@ -108,11 +106,6 @@ export default function EquipmentTable({ equipment, loading = false }) {
                     <Link href={`/admin/equipos/${encodeURIComponent(item.id)}`} className="rounded-xl px-3 py-2 text-xs font-black text-[#0077B6] transition hover:bg-[#E3F5FC]">
                       Historial
                     </Link>
-                    {item.status === "Entregado" && item.currentFolio ? (
-                      <Link href="/admin/garantias" className="rounded-xl px-3 py-2 text-xs font-black text-[#526174] transition hover:bg-white">
-                        Abrir garantia
-                      </Link>
-                    ) : null}
                   </div>
                 </td>
               </tr>

@@ -19,8 +19,8 @@ function StatusBadge({ active }) {
   );
 }
 
-function FrequentBadge({ repairs }) {
-  if (Number(repairs || 0) < 2) return null;
+function FrequentBadge({ frequent }) {
+  if (!frequent) return null;
   return (
     <span className="inline-flex rounded-full border border-[#E8C58F] bg-[#FFF7ED] px-2.5 py-1 text-[11px] font-black text-[#B45309]">
       Frecuente
@@ -76,7 +76,7 @@ export default function ClientsTable({ clients, loading = false, onNewClient }) 
     <div className="overflow-hidden rounded-[24px] border border-[#C9D8E5] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
       <div className="flex flex-col gap-2 border-b border-[#C9D8E5] px-5 py-4 sm:px-6">
         <h2 className="text-xl font-black tracking-[-0.02em] text-[#102033]">Listado de clientes</h2>
-        <p className="text-sm text-[#526174]">Consulta clientes reales y reutiliza su historial cuando vuelvan al taller.</p>
+        
       </div>
 
       <div className="overflow-x-auto">
@@ -104,7 +104,7 @@ export default function ClientsTable({ clients, loading = false, onNewClient }) 
                         <Link href={`/admin/clientes/${client.id}`} className="text-sm font-black text-[#102033] hover:text-[#0077B6]">{client.name}</Link>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <p className="text-xs text-[#526174]">{client.note}</p>
-                          <FrequentBadge repairs={client.repairs} />
+                          <FrequentBadge frequent={client.frequent} />
                         </div>
                       </div>
                     </div>

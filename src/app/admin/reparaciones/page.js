@@ -4,16 +4,17 @@ import { getToken } from "@/lib/authStorage";
 import { useEffect, useMemo, useState } from "react";
 import RepairsHeader from "@/components/admin/RepairsHeader";
 import RepairsManagementTable from "@/components/admin/RepairsManagementTable";
+import { getPaymentStatus } from "@/lib/paymentStatus";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const statusMeta = {
-  recibido: { label: "Recibidos", color: "#4F9DCA", note: "Entraron al taller" },
-  diagnostico: { label: "Diagnóstico", color: "#C76E28", note: "En revisión" },
-  en_reparacion: { label: "En reparación", color: "#008EC4", note: "Trabajo activo" },
-  esperando_refaccion: { label: "En espera", color: "#B98517", note: "Pieza o autorización" },
-  finalizado: { label: "Listos", color: "#2F855A", note: "Para entrega" },
-  entregado: { label: "Entregados", color: "#64748B", note: "Cerrados" },
+  recibido: { label: "Recibidos", color: "#4F9DCA" },
+  diagnostico: { label: "Diagnóstico", color: "#C76E28" },
+  en_reparacion: { label: "En reparación", color: "#008EC4", },
+  esperando_refaccion: { label: "En espera", color: "#B98517",},
+  finalizado: { label: "Listos", color: "#2F855A"  },
+  entregado: { label: "Entregados", color: "#64748B" },
 };
 
 function formatDate(value) {
@@ -21,6 +22,29 @@ function formatDate(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function absoluteFileUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (url.startsWith("http://localhost:3001")) return url.replace("http://localhost:3001", API_URL);
+  if (url.startsWith("https://localhost:3001")) return url.replace("https://localhost:3001", API_URL);
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) return `${API_URL}${url}`;
+  return url;
+}
+
+function signedReceiptUrl(repair) {
+  const document = repair.documentos?.reciboFirmado || repair.reciboFirmado || {};
+  return absoluteFileUrl(
+    repair.reciboFirmadoUrl ||
+    document.url ||
+    document.signedUrl ||
+    document.publicUrl ||
+    document.ruta ||
+    document.src ||
+    document.dataUrl
+  );
 }
 
 function mapRepair(repair) {
@@ -43,7 +67,10 @@ function mapRepair(repair) {
     date: formatDate(repair.fechaIngreso || repair.creadoEn),
     priority: repair.prioridad || (repair.estado === "entregado" ? "Cerrada" : "Normal"),
     lastMove: lastHistory?.titulo || repair.observacionesCliente || "Equipo registrado",
-    signedReceiptUrl: repair.reciboFirmadoUrl || repair.reciboFirmado?.url || repair.documentos?.reciboFirmado?.url || repair.documentos?.reciboFirmado?.signedUrl || "",
+    pago: repair.pago || {},
+    anticipo: repair.anticipo || {},
+    paymentStatus: getPaymentStatus(repair),
+    signedReceiptUrl: signedReceiptUrl(repair),
   };
 }
 

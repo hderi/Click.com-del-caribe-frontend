@@ -126,9 +126,9 @@ export default function RepairReceiptPage({ params }) {
         }
       `}</style>
 
-      <div className="no-print mx-auto mb-4 flex max-w-[420px] items-center justify-between gap-3">
-        <Link href={`/admin/reparaciones/${encodeURIComponent(data.folio)}?vista=ficha`} className="text-sm font-bold text-[#0077B6]">
-          Volver a ficha
+      <div className="no-print mb-4 flex w-full items-center justify-between px-8">
+        <Link href="/admin/reparaciones" className="text-sm font-bold text-[#0077B6]">
+          Volver a reparaciones
         </Link>
         <button type="button" onClick={() => window.print()} className="rounded-[6px] border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-bold text-[#0F172A]">
           Imprimir / guardar PDF

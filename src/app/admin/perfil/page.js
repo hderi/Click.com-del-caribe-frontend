@@ -56,39 +56,34 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-[26px] border border-[#C9D8E5] bg-white p-6 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF7A00]">Cuenta</p>
-        <h1 className="mt-2 text-3xl font-black tracking-[-0.03em] text-[#102033]">Mi perfil</h1>
-        <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#526174]">
-          Aquí cada usuario actualiza su nombre, usuario y contraseña. La creación o bloqueo de usuarios queda en Configuración.
-        </p>
+    <div className="space-y-5 font-[Inter]">
+      <section className="rounded-md border border-[#dde5ee] bg-white px-6 py-5">
+        <h1 className="text-2xl font-bold text-[#0f172a]">Mi perfil</h1>
       </section>
 
       {mensaje && (
-        <div className="rounded-2xl border border-[#BFD0DF] bg-white p-4 text-sm font-bold text-[#102033]">
+        <div className="rounded-md border border-[#bfd0df] bg-white px-4 py-3 text-sm font-semibold text-[#102033]">
           {mensaje}
         </div>
       )}
 
-      <form onSubmit={guardarPerfil} className="rounded-[24px] border border-[#C9D8E5] bg-white p-6 shadow-[0_12px_28px_rgba(15,23,42,0.07)]">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-black text-[#102033]">Datos de acceso</h2>
-          <p className="text-sm font-semibold text-[#526174]">Las contraseñas guardadas están protegidas. Puedes ver u ocultar lo que escribes antes de guardar.</p>
+      <form onSubmit={guardarPerfil} className="rounded-md border border-[#dde5ee] bg-white">
+        <div className="border-b border-[#dde5ee] px-6 py-4">
+          <h2 className="text-lg font-bold text-[#0f172a]">Datos de acceso</h2>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
           <Field label="Nombre preferente" value={form.nombre} onChange={(v) => setForm({ ...form, nombre: v })} />
           <Field label="Nombre de usuario" value={form.usuario} onChange={(v) => setForm({ ...form, usuario: v })} />
           <Field label="Contraseña actual" type="password" value={form.passwordActual} onChange={(v) => setForm({ ...form, passwordActual: v })} />
           <Field label="Nueva contraseña" type="password" value={form.passwordNueva} onChange={(v) => setForm({ ...form, passwordNueva: v })} />
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button className="rounded-xl bg-[#00A8E8] px-5 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(0,168,232,0.22)] hover:bg-[#008FC7]">
+        <div className="flex flex-wrap items-center gap-3 border-t border-[#dde5ee] px-6 py-4">
+          <button className="rounded-md bg-[#0055ff] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0047d6]">
             Guardar mi perfil
           </button>
-          <span className="text-sm font-semibold text-[#526174]">Rol actual: {usuario?.rol || "usuario"}</span>
+          <span className="text-sm font-medium text-[#526174]">Rol actual: {usuario?.rol || "usuario"}</span>
         </div>
       </form>
     </div>
@@ -98,21 +93,30 @@ export default function PerfilPage() {
 function Field({ label, value, onChange, type = "text" }) {
   const [visible, setVisible] = useState(false);
   const isPassword = type === "password";
+  const hasPasswordValue = isPassword && String(value || "").length > 0;
+
+  function handleChange(nextValue) {
+    if (isPassword && !nextValue) {
+      setVisible(false);
+    }
+    onChange(nextValue);
+  }
+
   return (
     <div>
-      <label className="text-xs font-black uppercase tracking-[0.12em] text-[#526174]">{label}</label>
+      <label className="text-xs font-bold uppercase tracking-[0.16em] text-[#526174]">{label}</label>
       <div className="relative mt-1">
         <input
           type={isPassword && visible ? "text" : type}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`w-full rounded-xl border border-[#C8D6E3] bg-white px-3 py-3 text-sm font-bold text-[#102033] outline-none focus:border-[#00A8E8] focus:ring-4 focus:ring-[#DDF3FB] ${isPassword ? "pr-24" : ""}`}
+          onChange={(e) => handleChange(e.target.value)}
+          className={`w-full rounded-md border border-[#d1d9e2] bg-white px-3 py-3 text-sm font-semibold text-[#102033] outline-none transition focus:border-[#0055ff] ${hasPasswordValue ? "pr-24" : ""}`}
         />
-        {isPassword && (
+        {hasPasswordValue && (
           <button
             type="button"
             onClick={() => setVisible((current) => !current)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-[#C8D6E3] bg-white px-3 py-1.5 text-xs font-black text-[#334155] hover:bg-[#EEF5FA]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-[#d1d9e2] bg-white px-3 py-1.5 text-xs font-bold text-[#0055ff] transition hover:bg-[#f4f7fb]"
           >
             {visible ? "Ocultar" : "Ver"}
           </button>

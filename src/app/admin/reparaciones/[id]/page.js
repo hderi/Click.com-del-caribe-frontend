@@ -126,7 +126,16 @@ export default function RepairDetailPage({ params }) {
 
   useEffect(() => {
     if (!loading && repair && searchParams.get("print") === "1") {
-      const timer = setTimeout(() => window.print(), 350);
+      const timer = setTimeout(() => {
+        const cleanup = () => {
+          document.body.classList.remove("printing-repair-order");
+        };
+
+        document.body.classList.add("printing-repair-order");
+        window.addEventListener("afterprint", cleanup, { once: true });
+        window.print();
+        window.setTimeout(cleanup, 1500);
+      }, 350);
       return () => clearTimeout(timer);
     }
   }, [loading, repair, searchParams]);

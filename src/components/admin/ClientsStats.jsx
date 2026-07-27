@@ -2,16 +2,21 @@
 
 export default function ClientsStats({ stats = [] }) {
   return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {stats.map((item) => (
-        <div key={item.label} className="rounded-lg border border-[#d7dee8] bg-white p-4">
-          <div className="flex items-start justify-between gap-3">
+    <section className="grid grid-cols-1 overflow-hidden rounded-md border border-[#D9E1EA] bg-white font-['Inter'] sm:grid-cols-2 xl:grid-cols-4">
+      {stats.map((item, index) => (
+        <div
+          key={item.label}
+          className={`relative min-h-[92px] px-5 py-4 ${
+            index !== stats.length - 1 ? "border-b border-[#D9E1EA] sm:border-r xl:border-b-0" : ""
+          } ${index === 1 ? "sm:border-r-0 xl:border-r" : ""}`}
+        >
+          <span className="absolute right-5 top-5 h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5B677A]">{item.label}</p>
+          <div className="mt-3 flex items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase text-[#5b677a]">{item.label}</p>
-              <p className="mt-1 text-2xl font-bold text-[#111827]">{item.count}</p>
-              <p className="mt-1 text-xs leading-5 text-[#6b7280]">{item.note}</p>
+              <p className="text-[28px] font-bold leading-none text-[#0B1220]">{item.count}</p>
+              <p className="mt-2 text-[13px] leading-5 text-[#526174]">{item.note}</p>
             </div>
-            <span className="mt-1 h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
           </div>
         </div>
       ))}

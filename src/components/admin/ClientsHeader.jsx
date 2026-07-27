@@ -4,14 +4,7 @@ export default function ClientsHeader({ searchQuery, onSearchChange, clientCount
   return (
     <section className="rounded-[26px] border border-[#C9D8E5] bg-gradient-to-br from-[#F8FBFD] via-[#EEF5FA] to-[#E5F0F7] p-6 sm:p-7 shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF7A00]">Base de clientes</p>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-[-0.03em] text-[#102033]">Clientes</h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#526174]">
-            Aquí se consultan clientes reales, sus datos de contacto y el historial que se vaya generando en el sistema.
-          </p>
-        </div>
-
+ 
         <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
           <div className="relative flex-1 lg:w-96">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#91A4B7]">
@@ -36,9 +29,7 @@ export default function ClientsHeader({ searchQuery, onSearchChange, clientCount
         </div>
       </div>
 
-      <p className="mt-5 text-sm font-bold text-[#526174]">
-        {clientCount} clientes registrados en el sistema.
-      </p>
+
     </section>
   );
 }

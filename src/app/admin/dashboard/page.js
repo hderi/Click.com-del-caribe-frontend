@@ -10,11 +10,9 @@ import {
   AlertTriangle,
   DollarSign,
   BarChart3,
-  Search,
-  Filter,
-  MoreVertical,
   ArrowRight,
 } from "lucide-react";
+import { getPaymentStatus, hasPendingPayment } from "@/lib/paymentStatus";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -201,15 +199,16 @@ export default function DashboardPage() {
 
     let anticipoTotal = 0;
     let saldoPendiente = 0;
-    let conAnticipo = 0;
+    const pagos = { sin_pago: 0, anticipo: 0, pendiente: 0, liquidado: 0 };
 
     reparacionesPeriodo.forEach((item) => {
       porEstado[item.estado] = (porEstado[item.estado] || 0) + 1;
 
-      if (item.anticipo?.dioAnticipo) conAnticipo += 1;
+      const estadoPago = getPaymentStatus(item);
+      pagos[estadoPago.key] = (pagos[estadoPago.key] || 0) + 1;
 
       anticipoTotal += Number(item.anticipo?.monto || 0);
-      saldoPendiente += Number(item.pago?.saldoPendiente || 0);
+      if (hasPendingPayment(item)) saldoPendiente += Number(estadoPago.saldo || 0);
 
       if (!["finalizado", "entregado"].includes(item.estado)) {
         porTecnico[item.tecnico] = (porTecnico[item.tecnico] || 0) + 1;
@@ -237,7 +236,7 @@ export default function DashboardPage() {
       tecnicos,
       anticipoTotal,
       saldoPendiente,
-      conAnticipo,
+      pagos,
     };
   }, [reparacionesPeriodo]);
 
@@ -349,12 +348,12 @@ export default function DashboardPage() {
         <Metric icon={Clock} title="Pendientes" value={data.espera} note="Diagnóstico o espera" color="#C95F00" />
         <Metric icon={Calendar} title="Listas" value={data.listas} note="Por entregar" color="#087443" />
         <Metric icon={AlertTriangle} title="Cerradas" value={data.cerradas} note="Entregadas" color="#737373" />
-        <Metric icon={DollarSign} title="Con pago" value={data.conAnticipo} note={`$ ${Number(data.anticipoTotal || 0).toLocaleString("es-MX")} recibido`} color="#087443" />
-        <Metric icon={BarChart3} title="Saldo pendiente" value={`$ ${Number(data.saldoPendiente || 0).toLocaleString("es-MX")}`} note="Por cobrar" color="#C95F00" />
+        <Metric icon={DollarSign} title="Liquidado" value={data.pagos.liquidado || 0} note={`$ ${Number(data.anticipoTotal || 0).toLocaleString("es-MX")} recibido`} color="#087443" />
+        <Metric icon={BarChart3} title="Pagos pendientes" value={(data.pagos.anticipo || 0) + (data.pagos.pendiente || 0)} note={`$ ${Number(data.saldoPendiente || 0).toLocaleString("es-MX")} por cobrar`} color="#C95F00" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <Panel title="Flujo por estado" subtitle="Distribución actual de las órdenes de trabajo." showFilter>
+        <Panel title="Flujo por estado" subtitle="Distribución actual de las órdenes de trabajo.">
           <div className="mt-5 min-h-[280px] border border-[var(--dash-line)] bg-white px-6 py-7">
             <div className="flex h-full min-h-[225px] items-end gap-6">
               {barras.map((bar) => (
@@ -385,7 +384,7 @@ export default function DashboardPage() {
       </section>
 
       <section>
-        <Panel title="Órdenes recientes" subtitle="Últimas órdenes registradas en el sistema." actions>
+        <Panel title="Órdenes recientes" subtitle="Últimas órdenes registradas en el sistema.">
           {recientes.length === 0 ? (
             <div className="mt-5 border border-dashed border-[var(--dash-line)] bg-white p-8 text-center text-[13px] font-medium text-[var(--dash-dim)]">
               Todavía no hay órdenes registradas.
@@ -401,7 +400,6 @@ export default function DashboardPage() {
                     <Th>Técnico</Th>
                     <Th>Estado</Th>
                     <Th>Tiempo</Th>
-                    <Th></Th>
                   </tr>
                 </thead>
 
@@ -432,12 +430,6 @@ export default function DashboardPage() {
                       </td>
 
                       <td className="px-3 py-3 text-[13px] text-[var(--dash-dim)]">{tiempoTranscurrido(item.fecha)}</td>
-
-                      <td className="px-3 py-3 text-right">
-                        <button type="button" disabled className="cursor-not-allowed text-[var(--dash-dim)] opacity-40" aria-label="Más opciones">
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -452,7 +444,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <Panel title="Carga por técnico" subtitle="Órdenes activas asignadas." showFilter>
+        <Panel title="Carga por técnico" subtitle="Órdenes activas asignadas.">
           <div className="mt-5 space-y-4">
             {data.tecnicos.length === 0 ? (
               <div className="border border-dashed border-[var(--dash-line)] bg-white p-5 text-[13px] font-medium text-[var(--dash-dim)]">
@@ -476,7 +468,7 @@ export default function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Próximas entregas" subtitle="Equipos listos, pendientes de entregar al cliente." showFilter>
+        <Panel title="Próximas entregas" subtitle="Equipos listos, pendientes de entregar al cliente.">
           <NextDeliveries items={proximasEntregas} />
         </Panel>
       </section>
@@ -501,7 +493,7 @@ function Metric({ icon: Icon, title, value, note, color }) {
   );
 }
 
-function Panel({ title, subtitle, children, showFilter, actions }) {
+function Panel({ title, subtitle, children }) {
   return (
     <section className="border border-[var(--dash-line)] bg-white p-5">
       <div className="flex items-start justify-between gap-4">
@@ -510,31 +502,6 @@ function Panel({ title, subtitle, children, showFilter, actions }) {
           <p className="mt-1 text-[13px] font-medium text-[var(--dash-dim)]">{subtitle}</p>
         </div>
 
-        {showFilter && (
-          <button
-            type="button"
-            disabled
-            className="flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-[4px] border border-[var(--dash-line)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--dash-dim)] opacity-70"
-          >
-            Este mes
-          </button>
-        )}
-
-        {actions && (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button type="button" disabled className="cursor-not-allowed rounded-[4px] border border-[var(--dash-line)] bg-white p-2 text-[var(--dash-dim)] opacity-70" aria-label="Buscar">
-              <Search className="h-4 w-4" />
-            </button>
-
-            <button type="button" disabled className="cursor-not-allowed rounded-[4px] border border-[var(--dash-line)] bg-white p-2 text-[var(--dash-dim)] opacity-70" aria-label="Filtrar">
-              <Filter className="h-4 w-4" />
-            </button>
-
-            <button type="button" disabled className="cursor-not-allowed rounded-[4px] border border-[var(--dash-line)] bg-white p-2 text-[var(--dash-dim)] opacity-70" aria-label="Más opciones">
-              <MoreVertical className="h-4 w-4" />
-            </button>
-          </div>
-        )}
       </div>
 
       {children}

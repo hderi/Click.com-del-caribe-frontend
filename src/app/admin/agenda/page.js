@@ -6,12 +6,24 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const estadosListos = ["finalizado"];
-const estadoEntregado = "entregado";
+const estadosCerrados = new Set(["entregado"]);
+
+function estadoKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isRepairActive(repair) {
+  return !estadosCerrados.has(estadoKey(repair?.estado));
+}
 
 const statusLabels = {
   recibido: "Recibido",
-  diagnostico: "En diagnostico",
-  en_reparacion: "En reparacion",
+  diagnostico: "En diagnóstico",
+  en_reparacion: "En reparación",
   esperando_refaccion: "Esperando refaccion",
   finalizado: "Listo",
   entregado: "Entregado",
@@ -67,7 +79,7 @@ export default function AgendaPage() {
   }, []);
 
   const data = useMemo(() => {
-    const vigentes = reparaciones.filter((r) => String(r.estado || "").toLowerCase() !== estadoEntregado);
+    const vigentes = reparaciones.filter(isRepairActive);
     const enRango = vigentes.filter((r) => {
       const fecha = dateOnly(r.fechaEntregaEstimada || r.fechaIngreso || r.creadoEn);
       return fecha && (!inicio || fecha >= inicio) && (!fin || fecha <= fin);
@@ -75,10 +87,10 @@ export default function AgendaPage() {
 
     const hoy = today();
     const paraHoy = enRango.filter((r) => dateOnly(r.fechaEntregaEstimada) === hoy);
-    const listas = enRango.filter((r) => estadosListos.includes(r.estado));
+    const listas = enRango.filter((r) => estadosListos.includes(estadoKey(r.estado)));
     const vencidas = vigentes.filter((r) => {
       const fecha = dateOnly(r.fechaEntregaEstimada);
-      return fecha && fecha < hoy && !estadosListos.includes(r.estado);
+      return fecha && fecha < hoy && !estadosListos.includes(estadoKey(r.estado));
     });
 
     return { vigentes, enRango, paraHoy, listas, vencidas };
@@ -91,12 +103,10 @@ export default function AgendaPage() {
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#C05A00]">Agenda operativa</p>
             <h1 className="mt-2 text-[28px] font-black leading-tight text-[#0F172A]">Agenda y entregas</h1>
-            <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[#56657A]">
-              Esta vista se alimenta de las reparaciones guardadas en el sistema. Usa la fecha de entrega estimada para revisar el trabajo del dia, ordenes vencidas y entregas por rango.
-            </p>
+
           </div>
           <div className="rounded-md border border-[#E1E8F0] bg-[#F8FAFC] px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#64748B]">
-            {loading ? "Cargando datos" : `${data.vigentes.length} ordenes vigentes`}
+            {loading ? "Cargando datos" : `${data.vigentes.length} órdenes vigentes`}
           </div>
         </div>
       </section>
@@ -122,15 +132,15 @@ export default function AgendaPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card title="Para hoy" value={data.paraHoy.length} note="Entrega estimada" color="#0B86AD" />
-        <Card title="En rango" value={data.enRango.length} note="Ordenes del periodo" color="#2563EB" />
+        <Card title="En rango" value={data.enRango.length} note="Órdenes del periodo" color="#2563EB" />
         <Card title="Listas" value={data.listas.length} note="Por recoger" color="#16854E" />
         <Card title="Vencidas" value={data.vencidas.length} note="Revisar atraso" color="#C55A11" />
       </section>
 
       <section className="rounded-lg border border-[#D6DEE8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-black text-[#0F172A]">Ordenes del rango seleccionado</h2>
-          <p className="text-sm font-semibold text-[#64748B]">Se muestran las ordenes cuya fecha de entrega estimada cae dentro del periodo elegido.</p>
+          <h2 className="text-xl font-black text-[#0F172A]">Órdenes del rango seleccionado</h2>
+          <p className="text-sm font-semibold text-[#64748B]">Se muestran solo órdenes en curso cuya fecha de entrega estimada cae dentro del periodo elegido.</p>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px]">
@@ -167,7 +177,7 @@ export default function AgendaPage() {
               {!loading && !data.enRango.length ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-sm font-bold text-[#64748B]">
-                    No hay ordenes en el rango seleccionado.
+                    No hay órdenes vigentes en el rango seleccionado.
                   </td>
                 </tr>
               ) : null}
@@ -208,7 +218,7 @@ function Card({ title, value, note, color }) {
 }
 
 function StatusBadge({ estado }) {
-  const key = String(estado || "").toLowerCase();
+  const key = estadoKey(estado);
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusStyles[key] || "border-[#CDD5E1] bg-[#F8FAFC] text-[#475569]"}`}>
       {statusLabels[key] || estado || "Sin estado"}

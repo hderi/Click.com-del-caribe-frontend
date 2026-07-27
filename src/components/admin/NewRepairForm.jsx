@@ -396,6 +396,9 @@ export default function NewRepairForm() {
   const [createdRepair, setCreatedRepair] = useState(null);
   const [repairOptions, setRepairOptions] = useState(DEFAULT_REPAIR_OPTIONS);
   const [users, setUsers] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [clientMode, setClientMode] = useState("nuevo");
+  const [selectedClientId, setSelectedClientId] = useState("");
 
   const deviceTypeOptions = useMemo(() => normalizeOptions(repairOptions.tiposEquipo, DEVICE_TYPES), [repairOptions.tiposEquipo]);
   const brandOptions = useMemo(() => normalizeOptions(repairOptions.marcas, BRAND_OPTIONS), [repairOptions.marcas]);
@@ -438,6 +441,17 @@ export default function NewRepairForm() {
   const conditionOptions = useMemo(() => normalizeOptions(repairOptions.condicionesFisicas, PHYSICAL_CONDITIONS), [repairOptions.condicionesFisicas]);
   const paymentOptions = useMemo(() => normalizeOptions(repairOptions.metodosPago, PAYMENT_METHODS), [repairOptions.metodosPago]);
   const guaranteeOptions = useMemo(() => normalizeOptions(repairOptions.garantia, GUARANTEE_OPTIONS), [repairOptions.garantia]);
+  const clientOptions = useMemo(() => {
+    return clients
+      .map((client) => ({
+        id: String(client.id),
+        nombre: client.nombre || client.name || "Sin nombre",
+        telefono: client.telefono || client.phone || "",
+        correo: client.correo || client.email || "",
+        tipo: client.tipo || client.type || "Particular",
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }));
+  }, [clients]);
 
   const toNumber = (value) => Number(String(value || "").replace(/[^0-9.]/g, "")) || 0;
   const serviceCostNumber = toNumber(form.serviceCost);
@@ -470,11 +484,16 @@ export default function NewRepairForm() {
         const response = await fetch(`${API_URL}/api/usuarios`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!response.ok) return;
-        const data = await response.json();
+        const clientsResponse = await fetch(`${API_URL}/api/clientes?limit=200`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = response.ok ? await response.json() : {};
+        const clientsData = clientsResponse.ok ? await clientsResponse.json() : {};
         const nextUsers = Array.isArray(data.usuarios) ? data.usuarios : [];
+        const nextClients = Array.isArray(clientsData.clientes) ? clientsData.clientes : [];
         if (!ignore) {
           setUsers(nextUsers);
+          setClients(nextClients);
         }
       } catch {}
     }
@@ -532,6 +551,36 @@ export default function NewRepairForm() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: null }));
   };
 
+  const changeClientMode = (mode) => {
+    setClientMode(mode);
+    setSelectedClientId("");
+    setErrors((prev) => ({ ...prev, selectedClient: null }));
+    if (mode === "nuevo") {
+      setForm((prev) => ({
+        ...prev,
+        clientName: "",
+        clientPhone: "",
+        clientEmail: "",
+        clientType: "Particular",
+      }));
+    }
+  };
+
+  const selectExistingClient = (event) => {
+    const id = event.target.value;
+    setSelectedClientId(id);
+    const client = clients.find((item) => String(item.id) === String(id));
+    if (!client) return;
+    setForm((prev) => ({
+      ...prev,
+      clientName: client.nombre || client.name || "",
+      clientPhone: client.telefono || client.phone || "",
+      clientEmail: client.correo || client.email || "",
+      clientType: client.tipo || client.type || "Particular",
+    }));
+    setErrors((prev) => ({ ...prev, selectedClient: null, clientName: null, clientPhone: null, clientEmail: null }));
+  };
+
   const setAdvanceAmount = (event) => {
     const value = event.target.value;
     const numericValue = toNumber(value);
@@ -577,6 +626,7 @@ export default function NewRepairForm() {
 
   const validate = () => {
     const newErrors = {};
+    if (clientMode === "existente" && !selectedClientId) newErrors.selectedClient = "Selecciona un cliente existente";
     if (!form.clientName.trim()) newErrors.clientName = "El nombre es requerido";
     if (canUseWhatsapp && !form.clientPhone.trim()) newErrors.clientPhone = "El teléfono es requerido para WhatsApp";
     if (canUseEmail && !form.clientEmail.trim()) newErrors.clientEmail = "El correo es requerido para Gmail";
@@ -602,6 +652,7 @@ export default function NewRepairForm() {
     setIsSubmitting(true);
 
     const payload = {
+      clienteId: clientMode === "existente" ? selectedClientId : undefined,
       canalContacto: form.contactChannel,
       cliente: {
         nombre: sanitizeText(form.clientName, 120),
@@ -791,6 +842,45 @@ export default function NewRepairForm() {
       )}
 
       <FormSection title="Datos del cliente" description="">
+        <div className="mb-4 grid grid-cols-1 border border-[#D5E2EC] bg-white sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => changeClientMode("nuevo")}
+            className={`px-4 py-3 text-left text-sm font-bold transition ${
+              clientMode === "nuevo" ? "bg-[#EFF6FF] text-[#0055FF]" : "text-[#334155] hover:bg-[#F8FBFD]"
+            }`}
+          >
+            Cliente nuevo
+          </button>
+          <button
+            type="button"
+            onClick={() => changeClientMode("existente")}
+            className={`border-t border-[#D5E2EC] px-4 py-3 text-left text-sm font-bold transition sm:border-l sm:border-t-0 ${
+              clientMode === "existente" ? "bg-[#EFF6FF] text-[#0055FF]" : "text-[#334155] hover:bg-[#F8FBFD]"
+            }`}
+          >
+            Cliente existente
+          </button>
+        </div>
+
+        {clientMode === "existente" && (
+          <div className="mb-4 rounded-xl border border-[#D5E2EC] bg-[#F8FBFD] p-4">
+            <SearchableChoiceField
+              id="existing-client"
+              label="Cliente guardado"
+              value={selectedClientId}
+              onChange={selectExistingClient}
+              options={clientOptions.map((client) => ({
+                value: client.id,
+                label: `${client.nombre}${client.telefono ? ` - ${client.telefono}` : ""}${client.correo ? ` - ${client.correo}` : ""}`,
+              }))}
+              placeholder="Buscar por nombre, teléfono o correo..."
+              required
+              error={errors.selectedClient}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <InputField id="client-name" label="Nombre del cliente" placeholder="" value={form.clientName} onChange={set("clientName")} required error={errors.clientName} />
           <SelectField

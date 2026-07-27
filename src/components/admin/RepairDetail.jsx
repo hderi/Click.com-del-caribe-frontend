@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatDate, formatTime, formatMoney } from "@/lib/api";
 import { getSessionUser, getToken } from "@/lib/authStorage";
+import { getPaymentStatus } from "@/lib/paymentStatus";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const CLOSED_STATUSES = new Set(["entregado"]);
@@ -24,6 +25,31 @@ const STATUS_FLOW = {
   finalizado: ["entregado"],
   entregado: [],
 };
+
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "por_definir", label: "Por definir" },
+  { value: "efectivo", label: "Efectivo" },
+  { value: "tarjeta_debito", label: "Tarjeta de débito" },
+  { value: "tarjeta_credito", label: "Tarjeta de crédito" },
+  { value: "transferencia", label: "Transferencia" },
+  { value: "cheque", label: "Cheque" },
+];
+
+function printRepairOrder() {
+  if (typeof document === "undefined") return;
+
+  const cleanup = () => {
+    document.body.classList.remove("printing-repair-order");
+  };
+
+  document.body.classList.add("printing-repair-order");
+  window.addEventListener("afterprint", cleanup, { once: true });
+
+  window.print();
+
+  window.setTimeout(cleanup, 1500);
+}
+
 function value(...items) {
   const found = items.find((item) => item !== undefined && item !== null && item !== "");
   return found === undefined ? "-" : found;
@@ -45,8 +71,11 @@ function displayText(item) {
     pantalla_rota: "Pantalla rota",
     sin_cargador: "Sin cargador",
     buen_estado: "Buen estado",
+    por_definir: "Por definir",
     efectivo: "Efectivo",
     tarjeta: "Tarjeta",
+    tarjeta_debito: "Tarjeta de débito",
+    tarjeta_credito: "Tarjeta de crédito",
     transferencia: "Transferencia",
     diagnostico: "Diagnóstico",
     en_reparacion: "En reparación",
@@ -111,6 +140,41 @@ function EvidenceImage({ photo, alt, className }) {
   return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
 }
 
+function photoName(photo, fallback) {
+  return typeof photo === "string" ? fallback : photo?.nombre || photo?.name || fallback;
+}
+
+function EvidenceCard({ photo, alt, imageClassName = "h-40 w-full object-cover" }) {
+  const src = photoSrc(photo);
+  const name = photoName(photo, alt);
+
+  return (
+    <figure className="overflow-hidden rounded-md border border-[#DDE5EE] bg-[#F8FAFC]">
+      {src ? (
+        <a href={src} target="_blank" rel="noreferrer" className="block" title="Abrir imagen">
+          <EvidenceImage photo={photo} alt={name} className={imageClassName} />
+        </a>
+      ) : (
+        <EvidenceImage photo={photo} alt={name} className={imageClassName} />
+      )}
+      <figcaption className="flex items-center justify-between gap-2 px-2 py-2 text-xs font-semibold text-[#64748B]">
+        <span className="min-w-0 truncate">{name}</span>
+        {src ? (
+          <a
+            href={src}
+            target="_blank"
+            rel="noreferrer"
+            download={name}
+            className="no-print shrink-0 text-[#0055FF] hover:underline"
+          >
+            Descargar
+          </a>
+        ) : null}
+      </figcaption>
+    </figure>
+  );
+}
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -159,6 +223,66 @@ function MoneyBox({ label, value: amount, accent = "#0F172A" }) {
   );
 }
 
+function PaymentStatusBox({ status }) {
+  const item = status || { label: "Sin pago", color: "#64748B", saldo: 0 };
+  return (
+    <div className="rounded-md border px-3 py-2" style={{ borderColor: `${item.color}55`, backgroundColor: `${item.color}10` }}>
+      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">Estado de pago</p>
+      <p className="mt-1 text-lg font-bold" style={{ color: item.color }}>{item.label}</p>
+      {item.saldo > 0 ? <p className="mt-1 text-xs font-bold text-[#526174]">Saldo por liquidar: ${Number(item.saldo).toLocaleString("es-MX")}</p> : null}
+    </div>
+  );
+}
+
+function PaymentHistoryList({ history = [] }) {
+  return (
+    <div className="mt-3 rounded-md border border-[#E5EAF0] bg-white">
+      <div className="border-b border-[#E5EAF0] px-3 py-2">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#64748B]">Historial de pagos</p>
+      </div>
+      {history.length ? (
+        <div className="divide-y divide-[#E5EAF0]">
+          {history.map((item, index) => (
+            <div key={`${item.fecha || "pago"}-${index}`} className="grid gap-2 px-3 py-2 text-sm sm:grid-cols-[110px_1fr_110px]">
+              <span className="font-semibold text-[#64748B]">{formatDate(value(item.fecha, item.date))}</span>
+              <span className="font-semibold text-[#0F172A]">
+                {displayText(value(item.formaPago, item.metodoPago, item.method, "Pago"))}
+                {item.nota ? <span className="block text-xs font-medium text-[#64748B]">{item.nota}</span> : null}
+              </span>
+              <span className="font-bold text-[#0B79D0]">{formatMoney(Number(item.monto || item.amount || 0))}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="px-3 py-2 text-sm font-semibold text-[#64748B]">Sin pagos registrados.</p>
+      )}
+    </div>
+  );
+}
+
+function paymentHistoryOf(repair = {}) {
+  const pago = repair.pago || repair.payment || {};
+  const anticipo = repair.anticipo || repair.advance || {};
+  const history = Array.isArray(pago.historialPagos) ? pago.historialPagos : [];
+  if (history.length) return history;
+  const initialAmount = Number(value(anticipo.monto, pago.anticipo, repair.anticipoMonto, 0));
+  if (!Number.isFinite(initialAmount) || initialAmount <= 0) return [];
+  return [{
+    fecha: value(repair.creadoEn, repair.fechaIngreso, repair.dateIn),
+    monto: initialAmount,
+    formaPago: value(anticipo.formaPago, pago.metodoPago, repair.metodoPago, "por_definir"),
+    nota: "Pago registrado al crear la orden",
+    usuario: value(repair.recibio, repair.recibidoPor, "Sistema"),
+  }];
+}
+
+function paymentTotal(history = []) {
+  return history.reduce((sum, item) => {
+    const amount = Number(item?.monto || item?.amount || 0);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
+}
+
 export default function RepairDetail({ repair, initialView = "ficha", onRepairUpdated }) {
   const [localRepair, setLocalRepair] = useState(repair);
   const [activeView, setActiveView] = useState(initialView);
@@ -187,8 +311,10 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
   const ingreso = value(current.fechaIngreso, current.fecha, current.creadoEn, current.dateIn);
   const entrada = value(current.horaEntrada, current.creadoEn);
   const costo = value(pago.costoServicio, pago.costo, current.costoServicio, 0);
-  const anticipoMonto = value(anticipo.monto, pago.anticipo, current.anticipoMonto, 0);
+  const paymentHistory = paymentHistoryOf(current);
+  const anticipoMonto = paymentTotal(paymentHistory) || value(anticipo.monto, pago.anticipo, current.anticipoMonto, 0);
   const saldo = value(pago.saldoPendiente, pago.saldo, current.saldo, 0);
+  const estadoPago = getPaymentStatus(current);
   const accesorios = value(current.accesorios, equipo.accesorios);
   const estadoFisico = value(current.estadoFisico, equipo.estadoFisico);
   const observaciones = value(current.observacionesRecepcion, equipo.observacionesRecepcion, current.observaciones);
@@ -207,9 +333,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
           <div>
             <Link href="/admin/reparaciones" className="text-sm font-semibold text-[#0078B8]">Volver a reparaciones</Link>
             <h1 className="mt-2">Actualizar orden {folio}</h1>
-            <p className="text-[#5D7188]">
-              Solo se registran avances, pagos permitidos, fotos y cambios de estado. La ficha inicial queda cerrada.
-            </p>
+
           </div>
           <button type="button" onClick={() => setActiveView("ficha")} className="rounded-md border border-[#DDE5EE] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A]">
             Ver ficha
@@ -232,7 +356,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => window.print()} className="rounded-md border border-[#DDE5EE] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A]">
+          <button type="button" onClick={printRepairOrder} className="rounded-md border border-[#DDE5EE] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A]">
             Imprimir orden
           </button>
         </div>
@@ -256,7 +380,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="repair-print-grid grid gap-4 lg:grid-cols-2">
           <Panel title="Datos del cliente">
             <Field label="Nombre">{value(cliente.nombre, current.clienteNombre, current.client)}</Field>
             <Field label="Teléfono">{value(cliente.telefono, current.telefono, current.phone)}</Field>
@@ -272,27 +396,31 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
             <Field label="Contraseña">{value(equipo.passwordEquipo, current.passwordEquipo)}</Field>
           </Panel>
 
-          <Panel title="Recepcion y asignacion">
+          <Panel title="Recepción y asignación">
             <Field label="Recibió">{value(current.recibio, current.recibidoPor)}</Field>
             <Field label="Hora">{formatTime(entrada)}</Field>
-            <Field label="Tecnico">{value(current.tecnico, current.tecnicoAsignado)}</Field>
-            <Field label="Autorizacion">{value(current.autorizacion?.metodo, current.authorizationMethod)}</Field>
+            <Field label="Técnico">{value(current.tecnico, current.tecnicoAsignado)}</Field>
+            <Field label="Autorización">{displayText(value(current.autorizacion?.metodo, current.authorizationMethod))}</Field>
             <Field label="Autoriza">{value(current.autorizacion?.autorizadoPor, current.authorizedBy)}</Field>
           </Panel>
 
-          <Panel id="garantia" title="Pago y garantia">
+          <Panel id="garantia" title="Pago, factura y garantía">
             <div className="grid gap-3 sm:grid-cols-3">
               <MoneyBox label="Costo" value={costo} accent="#0F172A" />
               <MoneyBox label="Pago recibido" value={anticipoMonto} accent="#0B79D0" />
               <MoneyBox label="Saldo" value={saldo} accent="#B45309" />
             </div>
             <div className="mt-3">
-              <Field label="Forma pago">{value(anticipo.formaPago, pago.metodoPago, current.metodoPago)}</Field>
+              <PaymentStatusBox status={estadoPago} />
+            </div>
+            <div className="mt-3">
+              <Field label="Forma pago">{displayText(value(anticipo.formaPago, pago.metodoPago, current.metodoPago))}</Field>
               <Field label="Factura">{asText(value(pago.factura, current.factura))}</Field>
-              <Field label="Garantia">{asText(value(garantia.aplica, current.garantiaAplica))}</Field>
+              <Field label="Garantía">{asText(value(garantia.aplica, current.garantiaAplica))}</Field>
               <Field label="Días">{value(garantia.dias, current.diasGarantia)}</Field>
               <Field label="Nota">{value(garantia.nota, garantia.notas, current.notaGarantia)}</Field>
             </div>
+            <PaymentHistoryList history={paymentHistory} />
           </Panel>
 
           <Panel title="Falla reportada" className="lg:col-span-2">
@@ -313,10 +441,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
           {photos.length ? (
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {photos.map((photo, index) => (
-                <figure key={photoSrc(photo) || index} className="overflow-hidden rounded-md border border-[#DDE5EE] bg-[#F8FAFC]">
-                  <EvidenceImage photo={photo} alt={photo?.nombre || `Evidencia ${index + 1}`} className="h-40 w-full object-cover" />
-                  <figcaption className="truncate px-2 py-2 text-xs font-semibold text-[#64748B]">{photo?.nombre || photo?.name || `Evidencia ${index + 1}`}</figcaption>
-                </figure>
+                <EvidenceCard key={photoSrc(photo) || index} photo={photo} alt={`Evidencia ${index + 1}`} />
               ))}
             </div>
           ) : (
@@ -338,10 +463,7 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
                   {Array.isArray(item.fotos) && item.fotos.length ? (
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {item.fotos.map((photo, photoIndex) => (
-                        <figure key={photoSrc(photo) || photoIndex} className="overflow-hidden rounded-md border border-[#DDE5EE] bg-white">
-                          <EvidenceImage photo={photo} alt={photo?.nombre || `Foto de avance ${photoIndex + 1}`} className="h-28 w-full object-cover" />
-                          <figcaption className="truncate px-2 py-1.5 text-[11px] font-semibold text-[#64748B]">{photo?.nombre || photo?.name || `Foto de avance ${photoIndex + 1}`}</figcaption>
-                        </figure>
+                        <EvidenceCard key={photoSrc(photo) || photoIndex} photo={photo} alt={`Foto de avance ${photoIndex + 1}`} imageClassName="h-28 w-full object-cover" />
                       ))}
                     </div>
                   ) : null}
@@ -367,25 +489,50 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
   const canManagePayment = ["admin", "gerencia", "ventas"].includes(role);
   const currentStatus = repair.estado || "recibido";
   const allowedNextStatuses = STATUS_FLOW[currentStatus] || [];
-  const availableStatusOptions = STATUS_OPTIONS.filter((item) => allowedNextStatuses.includes(item.value));
+  const availableStatusOptions = STATUS_OPTIONS.filter((item) => item.value === currentStatus || allowedNextStatuses.includes(item.value));
+  const paymentHistory = paymentHistoryOf(repair);
+  const totalPagado = paymentTotal(paymentHistory) || Number(value(anticipo.monto, pago.anticipo, repair.anticipoMonto, 0));
+  const costoActual = Number(value(pago.costoServicio, pago.costo, repair.costoServicio, 0));
   const [form, setForm] = useState(() => ({
-    estado: availableStatusOptions[0]?.value || currentStatus,
+    estado: currentStatus,
     tecnico: repair.tecnico || "",
     diagnostico: "",
     observacion: "",
     visibleCliente: false,
     costoServicio: String(value(pago.costoServicio, pago.costo, repair.costoServicio, "")),
-    pagoRecibido: String(value(anticipo.monto, pago.anticipo, repair.anticipoMonto, "")),
+    nuevoPago: "",
     formaPago: value(anticipo.formaPago, pago.metodoPago, repair.metodoPago, ""),
+    notaPago: "",
     fotosVisibles: false,
   }));
   const [files, setFiles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const statusRequiresNote = ["esperando_refaccion", "entregado"].includes(form.estado);
+  const nuevoPagoPreview = Number(form.nuevoPago || 0);
+  const nuevoPagoSeguro = Number.isFinite(nuevoPagoPreview) && nuevoPagoPreview > 0 ? nuevoPagoPreview : 0;
+  const saldoActual = Math.max(0, Number(form.costoServicio || 0) - totalPagado);
+  const nuevoPagoExcede = canManagePayment && nuevoPagoSeguro > saldoActual;
+  const saldoDespues = Math.max(0, Number(form.costoServicio || 0) - totalPagado - nuevoPagoSeguro);
+  const quedariaLiquidado = Number(form.costoServicio || 0) > 0 && saldoDespues === 0;
 
   function set(name) {
     return (event) => setForm((current) => ({ ...current, [name]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
+  }
+
+  function setNuevoPago(event) {
+    const raw = event.target.value;
+    if (raw === "") {
+      setForm((current) => ({ ...current, nuevoPago: "" }));
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+
+    const maxPayment = Math.max(0, Number(form.costoServicio || 0) - totalPagado);
+    const limitedPayment = Math.min(Math.max(parsed, 0), maxPayment);
+    setForm((current) => ({ ...current, nuevoPago: String(limitedPayment) }));
   }
 
   async function submit(event) {
@@ -394,32 +541,40 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
     setError("");
 
     try {
-      if (statusRequiresNote && !form.observacion.trim()) throw new Error("Agrega una observación para este cambio de estado.");
-      if (form.estado === repair.estado) throw new Error("Selecciona un estado diferente para registrar un nuevo proceso.");
       const token = getToken();
       const newPhotos = await prepareFiles(files, form.fotosVisibles);
       const costo = Number(form.costoServicio || 0);
-      const recibido = Number(form.pagoRecibido || 0);
-      if (canManagePayment && costo > 0 && recibido > costo) {
-        throw new Error("El pago recibido no puede ser mayor al costo.");
+      const nuevoPago = Number(form.nuevoPago || 0);
+      const hasPaymentChange = canManagePayment && (nuevoPago > 0 || costo !== costoActual || form.formaPago !== value(anticipo.formaPago, pago.metodoPago, repair.metodoPago, ""));
+      const hasProcessChange = form.estado !== repair.estado || form.diagnostico.trim() || form.observacion.trim() || newPhotos.length > 0;
+      if (hasProcessChange && statusRequiresNote && !form.observacion.trim()) throw new Error("Agrega una observación para este cambio de estado.");
+      if (!hasProcessChange && !hasPaymentChange) {
+        throw new Error("Agrega un avance, cambia el estado o registra un pago.");
       }
-      const saldo = Math.max(0, costo - recibido);
+      if (canManagePayment && nuevoPago < 0) {
+        throw new Error("El nuevo pago no puede ser negativo.");
+      }
+      if (canManagePayment && costo > 0 && nuevoPago > Math.max(0, costo - totalPagado)) {
+        throw new Error(`El nuevo pago no puede ser mayor al saldo pendiente (${formatMoney(Math.max(0, costo - totalPagado))}).`);
+      }
 
       const payload = {
-        estado: form.estado,
-        observacionesCliente: form.observacion.trim() || repair.observacionesCliente || "",
-        historialItem: {
+      };
+      if (hasProcessChange) {
+        payload.estado = form.estado;
+        payload.observacionesCliente = form.observacion.trim() || repair.observacionesCliente || "";
+        payload.historialItem = {
           estado: form.estado,
           titulo: `Actualización: ${statusLabel(form.estado)}`,
           descripcion: [form.diagnostico.trim(), form.observacion.trim()].filter(Boolean).join("\n\n"),
           visibleCliente: true,
-          tecnico: form.tecnico.trim() || repair.tecnico || "Taller",
+          tecnico: repair.tecnico || "Taller",
           fotos: newPhotos,
-        },
-      };
+        };
+      }
       if (canManagePayment) {
-        payload.pago = { ...(repair.pago || {}), costoServicio: costo, saldoPendiente: saldo, metodoPago: form.formaPago || "" };
-        payload.anticipo = { ...(repair.anticipo || {}), dioAnticipo: recibido > 0, monto: recibido, formaPago: form.formaPago };
+        payload.pago = { ...(repair.pago || {}), costoServicio: costo, metodoPago: form.formaPago || "" };
+        payload.nuevoPago = { monto: nuevoPago, formaPago: form.formaPago || "", nota: form.notaPago.trim() };
       }
 
       const response = await fetch(`${API_BASE}/api/reparaciones/${encodeURIComponent(folio)}`, {
@@ -451,7 +606,30 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
 
       <form onSubmit={submit} className="grid gap-4 lg:grid-cols-2">
         <InputSelect label="Estado" value={form.estado} onChange={set("estado")} options={availableStatusOptions} />
-        <ReadOnlyBox label="Tecnico asignado">{repair.tecnico || "Sin asignar"}</ReadOnlyBox>
+        <ReadOnlyBox label="Técnico asignado">{repair.tecnico || "Sin asignar"}</ReadOnlyBox>
+
+        {canManagePayment ? (
+          <div className="lg:col-span-2 rounded-md border border-[#E5EAF0] bg-[#F8FAFC] p-3">
+            <div className="grid gap-3 md:grid-cols-4">
+              <MoneyBox label="Costo" value={form.costoServicio || 0} />
+              <MoneyBox label="Pagado" value={totalPagado} accent="#0B79D0" />
+              <MoneyBox label="Falta por pagar" value={saldoDespues} accent={quedariaLiquidado ? "#16854E" : "#B45309"} />
+              <InputText label="Nuevo pago" type="number" min="0" max={saldoActual} step="0.01" value={form.nuevoPago} onChange={setNuevoPago} />
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <InputSelect label="Forma de pago" value={form.formaPago} onChange={set("formaPago")} options={PAYMENT_METHOD_OPTIONS} />
+              <InputText label="Nota del pago" value={form.notaPago} onChange={set("notaPago")} placeholder="Referencia o comentario opcional" />
+            </div>
+            <p className="mt-3 rounded-md border border-[#DDE5EE] bg-white px-3 py-2 text-sm font-semibold text-[#334155]">
+              {nuevoPagoExcede
+                ? `El nuevo pago no puede ser mayor a ${formatMoney(saldoActual)}.`
+                : quedariaLiquidado
+                  ? "Con este pago la orden quedará liquidada."
+                  : `Después de este pago faltarán ${formatMoney(saldoDespues)}.`}
+            </p>
+            <PaymentHistoryList history={paymentHistory} />
+          </div>
+        ) : null}
 
         <InputArea label="Diagnóstico / avance" value={form.diagnostico} onChange={set("diagnostico")} />
         <InputArea label={statusRequiresNote ? "Observación obligatoria" : "Observación"} value={form.observacion} onChange={set("observacion")} />
@@ -470,7 +648,7 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
         </div>
 
         <div className="lg:col-span-2 flex justify-end">
-          <button disabled={saving} className="rounded-md bg-[#0055FF] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
+          <button disabled={saving || nuevoPagoExcede} className="rounded-md bg-[#0055FF] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
             {saving ? "Guardando..." : "Guardar actualización"}
           </button>
         </div>
@@ -542,7 +720,7 @@ function CommunicationPanel({ folio }) {
   }
 
   return (
-    <Panel title="ComunicaciÃ³n">
+    <Panel title="Comunicación">
       <div className="grid gap-2 sm:grid-cols-2">
         <ActionButton onClick={() => openMessage("whatsapp")} disabled={loading === "whatsapp"}>
           {loading === "whatsapp" ? "Preparando..." : "Enviar WhatsApp"}

@@ -13,9 +13,7 @@ export default function ClientForm({
         <div>
           <p className="text-[11px] font-bold uppercase text-[#1d4ed8]">Alta manual</p>
           <h2 className="text-lg font-bold text-[#111827]">Nuevo cliente</h2>
-          <p className="mt-1 text-sm text-[#6b7280]">
-            Registra un cliente antes de crear una reparacion.
-          </p>
+
         </div>
         <button
           type="button"
@@ -32,7 +30,6 @@ export default function ClientForm({
             value={form.nombre}
             onChange={(event) => onChange("nombre", event.target.value)}
             className="h-10 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#dbeafe]"
-            placeholder="Ej. Maria Lopez"
           />
         </Field>
 
@@ -41,7 +38,7 @@ export default function ClientForm({
             value={form.telefono}
             onChange={(event) => onChange("telefono", event.target.value)}
             className="h-10 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#dbeafe]"
-            placeholder="Ej. 984 123 4567"
+            
           />
         </Field>
 
@@ -50,7 +47,7 @@ export default function ClientForm({
             value={form.email}
             onChange={(event) => onChange("email", event.target.value)}
             className="h-10 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#dbeafe]"
-            placeholder="correo@ejemplo.com"
+           
           />
         </Field>
 
@@ -65,12 +62,21 @@ export default function ClientForm({
           </select>
         </Field>
 
-        <Field label="Nota interna" className="md:col-span-2 xl:col-span-3">
+        <label className="flex h-10 items-center gap-3 self-end rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-semibold text-[#111827]">
+          <input
+            type="checkbox"
+            checked={Boolean(form.clienteFrecuente)}
+            onChange={(event) => onChange("clienteFrecuente", event.target.checked)}
+            className="h-4 w-4 accent-[#2563eb]"
+          />
+          Cliente frecuente
+        </label>
+
+        <Field label="Nota interna" className="md:col-span-2 xl:col-span-2">
           <input
             value={form.nota}
             onChange={(event) => onChange("nota", event.target.value)}
             className="h-10 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#dbeafe]"
-            placeholder="Ej. prefiere WhatsApp, requiere factura, cliente frecuente..."
           />
         </Field>
 

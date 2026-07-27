@@ -15,6 +15,7 @@ const emptyForm = {
   telefono: "",
   email: "",
   tipo: "Particular",
+  clienteFrecuente: false,
   nota: "",
 };
 
@@ -46,13 +47,22 @@ function isActiveRepair(repair) {
 function belongsToClient(repair, client) {
   if (!repair || !client) return false;
   const repairClient = repair.cliente || {};
-  return (
-    repair.clienteId === client.id ||
-    repairClient.id === client.id ||
-    (client.telefono && repairClient.telefono && String(repairClient.telefono).replace(/\D/g, "") === String(client.telefono).replace(/\D/g, "")) ||
-    (client.correo && repairClient.correo && normalizeText(repairClient.correo) === normalizeText(client.correo)) ||
-    (client.nombre && repairClient.nombre && normalizeText(repairClient.nombre) === normalizeText(client.nombre))
-  );
+  const repairClientId = repair.clienteId || repairClient.id || "";
+  if (repairClientId) return String(repairClientId) === String(client.id);
+
+  const sameName = normalizeText(repairClient.nombre) === normalizeText(client.nombre || client.name);
+  if (!sameName) return false;
+
+  const samePhone =
+    client.telefono &&
+    repairClient.telefono &&
+    String(repairClient.telefono).replace(/\D/g, "") === String(client.telefono).replace(/\D/g, "");
+  const sameEmail =
+    client.correo &&
+    repairClient.correo &&
+    normalizeText(repairClient.correo) === normalizeText(client.correo);
+
+  return Boolean(samePhone || sameEmail);
 }
 
 function belongsToClientEquipment(equipment, client, clientRepairs) {
@@ -75,9 +85,10 @@ function buildClientRow(client, repairs, equipment) {
     phone: client.telefono || client.phone || "",
     email: client.correo || client.email || "",
     type: client.tipo || client.type || "Particular",
+    frequent: Boolean(client.clienteFrecuente || client.frecuente || client.cliente_frecuente),
     repairs: clientRepairs.length,
     equipment: clientEquipment.length,
-    lastVisit: latest ? formatDate(repairDate(latest)) : formatDate(client.creadoEn),
+    lastVisit: latest ? formatDate(repairDate(latest)) : "Sin visitas",
     active,
     note: client.notas || client.nota || client.note || "Cliente registrado",
     receivedBy: latest?.recibidoPor || "Sin registrar",
@@ -184,6 +195,7 @@ export default function ClientesPage() {
           telefono: form.telefono.trim(),
           correo: form.email.trim(),
           tipo: form.tipo,
+          clienteFrecuente: Boolean(form.clienteFrecuente),
           nota: form.nota.trim(),
         }),
       });
