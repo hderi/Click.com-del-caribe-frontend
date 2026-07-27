@@ -206,6 +206,30 @@ export default function TrackingPreview({ folio, token }) {
                       <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-[#52647d]">
                         {item.descripcion || "-"}
                       </p>
+                      {Array.isArray(item.fotos) && item.fotos.length ? (
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {item.fotos.map((foto, fotoIndex) => {
+                            const src = foto?.url?.startsWith("http")
+                              ? foto.url
+                              : `${API_BASE}${foto?.url || ""}`;
+                            return (
+                              <a
+                                key={fotoIndex}
+                                href={src}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block overflow-hidden rounded-md border border-[#d6e0ea]"
+                              >
+                                <img
+                                  src={src}
+                                  alt={foto?.nombre || `Foto de avance ${fotoIndex + 1}`}
+                                  className="h-20 w-full object-cover"
+                                />
+                              </a>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))
@@ -285,4 +309,5 @@ function InfoCell({ label, value, detail }) {
     </div>
   );
 }
+
 
