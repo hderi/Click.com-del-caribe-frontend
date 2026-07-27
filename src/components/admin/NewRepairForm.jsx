@@ -355,23 +355,38 @@ function PasswordVisibleField({ id, label, value, onChange, placeholder }) {
 function PhotoDropPreview({ files, onChange }) {
   return (
     <div className="rounded-2xl border border-dashed border-[#BFD0DF] bg-[#F8FBFD] p-4">
-      <label htmlFor="reception-photos" className="block cursor-pointer">
-        <div className="flex flex-col gap-2 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
-          <div>
-            <p className="text-sm font-black text-[#102033]">Fotos al recibir</p>
-            <p className="mt-1 text-xs font-bold leading-5 text-[#64748B]">
-              Evidencia para rayones, golpes, pantalla, accesorios o estado general.
-            </p>
-          </div>
-          <span className="rounded-xl border border-[#C9D8E5] bg-white px-4 py-2 text-xs font-black text-[#24566F]">
-            Tomar o elegir fotos
-          </span>
+      <div className="flex flex-col gap-3 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
+        <div>
+          <p className="text-sm font-black text-[#102033]">Fotos al recibir</p>
+          <p className="mt-1 text-xs font-bold leading-5 text-[#64748B]">
+            Evidencia para rayones, golpes, pantalla, accesorios o estado general.
+          </p>
         </div>
-      </label>
-      
-      {/* Quitamos capture="environment" para que el celular permita elegir entre cámara y galería */}
+        
+        {/* Dos botones separados para evitar confusiones en el celular */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <label htmlFor="camera-input" className="cursor-pointer rounded-xl border border-[#C9D8E5] bg-white px-4 py-2 text-xs font-black text-[#24566F] shadow-sm hover:bg-[#F0F5F9]">
+            📷 Tomar foto
+          </label>
+          <label htmlFor="gallery-input" className="cursor-pointer rounded-xl border border-[#C9D8E5] bg-white px-4 py-2 text-xs font-black text-[#24566F] shadow-sm hover:bg-[#F0F5F9]">
+            🖼️ Elegir archivo
+          </label>
+        </div>
+      </div>
+
       <input 
-        id="reception-photos" 
+        id="camera-input" 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        multiple 
+        className="hidden" 
+        onChange={onChange} 
+      />
+
+     
+      <input 
+        id="gallery-input" 
         type="file" 
         accept="image/*" 
         multiple 
@@ -393,7 +408,6 @@ function PhotoDropPreview({ files, onChange }) {
     </div>
   );
 }
-
 export default function NewRepairForm() {
   const router = useRouter();
   const [form, setForm] = useState(createInitialState);
