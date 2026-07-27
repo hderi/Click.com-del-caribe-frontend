@@ -10,5 +10,5 @@ export default function SeguimientoFolioPage({ params, searchParams }) {
     return <TrackingAccessGate folio={folio} />;
   }
 
-  return <TrackingPreview folio={folio} />;
+  return <TrackingPreview folio={folio} token={token} />;
 }
