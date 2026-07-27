@@ -1,10 +1,115 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export default function TrackingPreview({ folio }) {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function formatDate(value) {
+  if (!value) return "-";
+  try {
+    return new Date(value).toLocaleDateString("es-MX", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch (_) {
+    return "-";
+  }
+}
+
+function formatTime(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleTimeString("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch (_) {
+    return "";
+  }
+}
+
+const STATUS_LABELS = {
+  recibido: "Recibido",
+  diagnostico: "Diagnóstico",
+  en_reparacion: "En reparación",
+  esperando_refaccion: "En espera de refacción",
+  finalizado: "Listo para entrega",
+  entregado: "Entregado",
+};
+
+export default function TrackingPreview({ folio, token }) {
   const cleanFolio =
     typeof folio === "string" && folio.trim()
       ? decodeURIComponent(folio).trim()
       : "RX-000";
+
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(
+          `${API_BASE}/api/seguimiento/${encodeURIComponent(cleanFolio)}?token=${encodeURIComponent(token || "")}`
+        );
+        const json = await response.json();
+        if (!response.ok) {
+          throw new Error(json.error || "No se pudo cargar el seguimiento.");
+        }
+        if (active) setData(json);
+      } catch (err) {
+        if (active) setError(err.message || "No se pudo cargar el seguimiento.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, [cleanFolio, token]);
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f3f6f9] px-4 font-[Inter]">
+        <p className="text-sm font-bold text-[#52647d]">Cargando seguimiento...</p>
+      </main>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f3f6f9] px-4 font-[Inter]">
+        <section className="mx-auto w-full max-w-md rounded-lg border border-[#f3c9c9] bg-white p-6 text-center">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#c0392b]">
+            Enlace no disponible
+          </p>
+          <p className="mt-3 text-sm font-semibold text-[#52647d]">
+            {error || "Este enlace ya no es válido. Solicita uno nuevo al taller."}
+          </p>
+          <Link
+            href="/"
+            className="mt-5 inline-flex h-11 items-center justify-center rounded-md border border-[#cbd8e7] bg-white px-4 text-sm font-black text-[#2563eb]"
+          >
+            Volver al inicio
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  const historial = Array.isArray(data.historial) ? data.historial : [];
+  const ultimoAvance = historial.length ? historial[historial.length - 1] : null;
+  const fotos = Array.isArray(data.fotos) ? data.fotos : [];
+  const saldo = Number(data.pago?.saldoPendiente || 0);
 
   return (
     <main
@@ -24,7 +129,7 @@ export default function TrackingPreview({ folio }) {
                 Seguimiento privado
               </p>
               <h1 className="mt-2 text-2xl font-black text-[#07152b]">
-                {cleanFolio}
+                {data.folio || cleanFolio}
               </h1>
               <p className="mt-1 text-sm font-semibold text-[#52647d]">
                 CLICK.COM del Caribe
@@ -40,22 +145,22 @@ export default function TrackingPreview({ folio }) {
         <div className="grid border-b border-[#d6e0ea] sm:grid-cols-2 lg:grid-cols-4">
           <InfoCell
             label="Estado"
-            value="Recibido"
-            detail="Ultima actualizacion visible"
+            value={STATUS_LABELS[data.estado] || data.estado || "-"}
+            detail={`Actualizado: ${formatDate(data.actualizadoEn)}`}
           />
           <InfoCell
             label="Equipo"
-            value="Equipo registrado"
-            detail="Pendiente de conectar"
+            value={[data.equipo?.marca, data.equipo?.modelo].filter(Boolean).join(" ") || data.equipo?.tipo || "-"}
+            detail={data.equipo?.tipo || "Sin tipo registrado"}
           />
           <InfoCell
             label="Fecha estimada"
-            value="Por confirmar"
-            detail="El taller actualizara este dato"
+            value={data.fechaEntregaEstimada ? formatDate(data.fechaEntregaEstimada) : "Por confirmar"}
+            detail="El taller actualizará este dato"
           />
           <InfoCell
             label="Saldo"
-            value="Pendiente de confirmar"
+            value={saldo > 0 ? `$${saldo.toLocaleString("es-MX")}` : "Sin saldo pendiente"}
             detail="Solo si aplica"
           />
         </div>
@@ -68,12 +173,17 @@ export default function TrackingPreview({ folio }) {
 
             <div className="mt-4 rounded-lg border border-[#d6e0ea] bg-[#f8fafc] p-5">
               <p className="text-base font-black text-[#07152b]">
-                Equipo registrado
+                {ultimoAvance?.titulo || "Equipo registrado"}
               </p>
               <p className="mt-2 text-sm font-semibold leading-6 text-[#52647d]">
-                Tu orden fue registrada. El taller publicara avances visibles
-                para el cliente cuando existan actualizaciones.
+                {ultimoAvance?.descripcion ||
+                  "Tu orden fue registrada. El taller publicará avances visibles para el cliente cuando existan actualizaciones."}
               </p>
+              {ultimoAvance ? (
+                <p className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-[#8aa0b8]">
+                  {formatDate(ultimoAvance.fecha)} {formatTime(ultimoAvance.fecha)}
+                </p>
+              ) : null}
             </div>
 
             <h2 className="mt-6 text-sm font-black uppercase tracking-[0.18em] text-[#07152b]">
@@ -81,19 +191,29 @@ export default function TrackingPreview({ folio }) {
             </h2>
 
             <div className="mt-4 divide-y divide-[#d6e0ea] rounded-lg border border-[#d6e0ea]">
-              <div className="grid gap-2 p-4 sm:grid-cols-[140px_1fr]">
-                <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#52647d]">
-                  Registro
-                </span>
-                <div>
-                  <p className="font-black text-[#07152b]">
-                    Equipo recibido por el taller
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#52647d]">
-                    Primer movimiento visible del folio.
-                  </p>
+              {historial.length ? (
+                historial.map((item, index) => (
+                  <div key={index} className="grid gap-2 p-4 sm:grid-cols-[140px_1fr]">
+                    <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#52647d]">
+                      {formatDate(item.fecha)}
+                      <br />
+                      {formatTime(item.fecha)}
+                    </span>
+                    <div>
+                      <p className="font-black text-[#07152b]">
+                        {item.titulo || "Movimiento"}
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-[#52647d]">
+                        {item.descripcion || "-"}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-sm font-semibold text-[#52647d]">
+                  Primer movimiento visible del folio.
                 </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -102,16 +222,41 @@ export default function TrackingPreview({ folio }) {
               Evidencias visibles
             </h2>
 
-            <div className="mt-4 rounded-lg border border-dashed border-[#b8c8d9] bg-[#f8fafc] p-8 text-center text-sm font-bold text-[#52647d]">
-              Sin fotos visibles por ahora.
-            </div>
+            {fotos.length ? (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {fotos.map((foto, index) => {
+                  const src = foto?.url?.startsWith("http")
+                    ? foto.url
+                    : `${API_BASE}${foto?.url || ""}`;
+                  return (
+                    <a
+                      key={index}
+                      href={src}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block overflow-hidden rounded-lg border border-[#d6e0ea]"
+                    >
+                      <img
+                        src={src}
+                        alt={foto?.nombre || `Evidencia ${index + 1}`}
+                        className="h-32 w-full object-cover"
+                      />
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-lg border border-dashed border-[#b8c8d9] bg-[#f8fafc] p-8 text-center text-sm font-bold text-[#52647d]">
+                Sin fotos visibles por ahora.
+              </div>
+            )}
 
             <div className="mt-5 rounded-lg border border-[#d6e0ea] p-5">
               <h2 className="text-sm font-black uppercase tracking-[0.18em] text-[#07152b]">
                 Privacidad del enlace
               </h2>
               <p className="mt-3 text-sm font-semibold leading-6 text-[#52647d]">
-                Este acceso es privado. Si cierras la pagina, vuelve a entrar
+                Este acceso es privado. Si cierras la página, vuelve a entrar
                 desde el enlace compartido por el taller.
               </p>
             </div>
@@ -140,3 +285,4 @@ function InfoCell({ label, value, detail }) {
     </div>
   );
 }
+
