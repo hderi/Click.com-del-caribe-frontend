@@ -1,6 +1,6 @@
 "use client";
 import { getToken, clearSession, setSession } from "@/lib/authStorage";
-import { canAccessPath } from "@/lib/roleAccess";
+import { canAccessPath, defaultPathForUser } from "@/lib/roleAccess";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -51,7 +51,7 @@ export default function AdminRouteShell({ children }) {
         }
 
         if (!canAccessPath(data.usuario, pathname)) {
-          router.replace("/admin/dashboard");
+          router.replace(defaultPathForUser(data.usuario));
           return;
         }
 

@@ -74,6 +74,33 @@ function hasSignedReceipt(repair) {
   );
 }
 
+function absoluteFileUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (url.startsWith("http://localhost:3001")) return url.replace("http://localhost:3001", API_URL);
+  if (url.startsWith("https://localhost:3001")) return url.replace("https://localhost:3001", API_URL);
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) return `${API_URL}${url}`;
+  return url;
+}
+
+function withSessionToken(url) {
+  const value = absoluteFileUrl(url);
+  if (!value || !value.includes("/uploads/") || value.includes("token=")) return value;
+  const token = getToken();
+  return token ? `${value}${value.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : value;
+}
+
+function signedReceiptUrl(repair) {
+  return withSessionToken(
+    repair?.signedReceiptUrl ||
+      repair?.reciboFirmadoUrl ||
+      repair?.documentos?.reciboFirmado?.url ||
+      repair?.documentos?.reciboFirmado?.path ||
+      ""
+  );
+}
+
 function isAllowedSignedReceipt(file) {
   if (!file) return false;
   const type = String(file.type || "").toLowerCase();
@@ -219,6 +246,9 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
                       </div>
                       <div>
                         <p className="text-sm font-black text-[#102033]">{repair.client}</p>
+                        {repair.repairContact && repair.repairContact !== repair.client && (
+                          <p className="text-xs font-bold text-[#0B79D0]">Contacto: {repair.repairContact}</p>
+                        )}
                         <p className="text-xs text-[#526174]">{repair.phone || "Sin telefono"}</p>
                       </div>
                     </div>
@@ -282,8 +312,8 @@ export default function RepairsManagementTable({ repairs, statusFilter = "todos"
                             {uploadingReceipt === repair.folio ? "Subiendo..." : "Subir recibo firmado"}
                             <input type="file" accept={SIGNED_RECEIPT_ACCEPT} className="hidden" onChange={(event) => uploadSignedReceipt(repair, event)} />
                           </label>
-                          {repair.signedReceiptUrl ? (
-                            <a className="block px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" href={repair.signedReceiptUrl} target="_blank" rel="noreferrer" onClick={() => setOpenDocsMenu("")}>
+                          {signedReceiptUrl(repair) ? (
+                            <a className="block px-3 py-2 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC]" href={signedReceiptUrl(repair)} target="_blank" rel="noreferrer" onClick={() => setOpenDocsMenu("")}>
                               Ver recibo firmado
                             </a>
                           ) : null}

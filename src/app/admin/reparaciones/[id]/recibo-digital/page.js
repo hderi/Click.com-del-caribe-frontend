@@ -3,23 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getToken } from "@/lib/authStorage";
+import { SERVICE_POLICIES } from "@/lib/servicePolicies";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-const DEFAULT_POLICIES = [
-  "EL CLIENTE ACEPTA LAS POLITICAS DE SERVICIO DE CLICK.COM DEL CARIBE Y ACEPTA QUE A TRAVES DE NUESTROS PROCEDIMIENTOS SE REALICE LA REPARACION Y/O DIAGNOSTICO DE SU EQUIPO DE COMPUTO AL SER ENTREGADO A NUESTRA EMPRESA.",
-  "LA REVISION O DIAGNOSTICO DEL EQUIPO REPARABLE O NO REPARABLE ES DE: CPU/PC: $300.00 PESOS, LAPTOP: $500 PESOS, IMPRESORA LASER E INYECCION DE TINTA $300.00, TABLET $200.00, PRECIOS MAS IVA, EN NUESTRAS INSTALACIONES.",
-  "EN CASO DE ACEPTAR EL SERVICIO PREVIA COTIZACION, NO SE COBRARA EL DIAGNOSTICO, UNICAMENTE EL COSTO DE LA REPARACION POR MANO DE OBRA Y REFACCIONES.",
-  "EL TIEMPO DE GARANTIA EN LA REPARACION O MANO DE OBRA ES DE 7 DIAS NATURALES.",
-  "EL TIEMPO DE GARANTIA EN REFACCIONES DEPENDERA DEL FABRICANTE O DEL PROVEEDOR.",
-  "EL TIEMPO DE GARANTIA NO APLICA EN CASO DE ELIMINACION DE VIRUS Y CUALQUIER SOFTWARE QUE EL CLIENTE TRAIGA PARA INSTALAR.",
-  "NO SE ENTREGA EL EQUIPO EN CASO DE NO PRESENTAR LA ORDEN DE SERVICIO CORRESPONDIENTE, EN CASO DE EXTRAVIO PRESENTAR DOCUMENTOS QUE AVALEN LA PROPIEDAD DEL MISMO.",
-  "CLICK.COM DEL CARIBE NO SE HACE RESPONSABLE DE LOS ACCESORIOS Y DANOS FISICOS (GOLPES, RAYADURAS) NO DECLARADOS EN LA ORDEN DE SERVICIO.",
-  "LA EMPRESA CLICK.COM DEL CARIBE Y SU REPRESENTANTE LEGAL PERSONA FISICA JUAN GABRIEL CUPUL HUU NO SE HACE RESPONSABLE DEL SOFTWARE ORIGINAL Y NO ORIGINAL INSTALADOS, ASI COMO TAMPOCO Y/O DESPUES DE DOS MESES DE HABER SIDO CONCLUIDO Y AVISADO AL CLIENTE DEL DIAGNOSTICO Y/O REPARACION.",
-  "LA FORMA DE PAGO DEL SERVICIO ES DE CONTADO, CON TARJETA DE DEBITO O CREDITO (MAS EL 2.5%), CHEQUE A NOMBRE DE JUAN GABRIEL CUPUL HUU, Y SE ENTREGARA EL EQUIPO CUANDO EL PAGO ESTE EN FIRME EN LA CUENTA.",
-  "VERIFIQUE QUE EL EQUIPO RECIBIDO ESTE DE ACUERDO A LO DECLARADO EN LA ORDEN DE SERVICIO, YA QUE NO SE ACEPTARA ALGUNA RECLAMACION POSTERIOR A LA FECHA DE ENTREGA.",
-  "EN CASO CONTRARIO TENDRA UN COSTO DE $300.00 PESOS DE RESGUARDO POR DIA Y LA EMPRESA NO SE HACE RESPONSABLE DEL EQUIPO.",
-];
 
 function value(...items) {
   const found = items.find((item) => item !== undefined && item !== null && item !== "");
@@ -45,6 +31,7 @@ function headers() {
 
 function receiptData(repair) {
   const cliente = repair?.cliente || {};
+  const contacto = repair?.contactoReparacion || {};
   const equipo = repair?.equipo || {};
   const pago = repair?.pago || {};
   const anticipo = repair?.anticipo || {};
@@ -56,9 +43,9 @@ function receiptData(repair) {
     folio: repair?.folio || "-",
     fechaIngreso: dateOnly(value(repair?.fechaIngreso, repair?.creadoEn)),
     fechaEstimada: dateOnly(value(repair?.fechaEntregaEstimada, repair?.fechaEstimada)),
-    cliente: value(cliente.nombre, repair?.clienteNombre),
-    telefono: value(cliente.telefono, repair?.telefono),
-    correo: value(cliente.correo, repair?.correo),
+    cliente: value(contacto.nombre, cliente.nombre, repair?.clienteNombre),
+    telefono: value(contacto.telefono, cliente.telefono, repair?.telefono),
+    correo: value(contacto.correo, cliente.correo, repair?.correo),
     equipo: [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || value(equipo.tipo, repair?.tipoEquipo, "Equipo"),
     tipo: value(equipo.tipo, repair?.tipoEquipo),
     serie: value(equipo.serie, repair?.numeroSerie),
@@ -118,7 +105,7 @@ export default function DigitalReceiptPage({ params }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#F3F4F6] px-4 py-6 font-[Inter] text-[#0A0A0A]">
+    <main className="receipt-print-root min-h-screen bg-[#F3F4F6] px-4 py-6 font-[Inter] text-[#0A0A0A]">
       <style jsx global>{`
         @media print {
           @page {
@@ -128,18 +115,49 @@ export default function DigitalReceiptPage({ params }) {
           html, body {
             background: white !important;
           }
+          body * {
+            visibility: hidden !important;
+          }
+          .receipt-print-root,
+          .receipt-print-root * {
+            visibility: visible !important;
+          }
+          .receipt-print-root {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+            background: white !important;
+          }
           .no-print {
             display: none !important;
           }
           .pdf-page {
-            min-height: auto !important;
+            width: 100% !important;
+            min-height: 0 !important;
+            height: auto !important;
             box-shadow: none !important;
             border: 0 !important;
             margin: 0 !important;
+            padding: 0 !important;
             page-break-after: always;
+            break-after: page;
           }
           .pdf-page:last-child {
             page-break-after: auto;
+            break-after: auto;
+          }
+          .policy-list {
+            gap: 7px !important;
+          }
+          .policy-item {
+            padding: 8px 10px !important;
+            break-inside: avoid;
+          }
+          .policy-item p {
+            font-size: 10.5px !important;
+            line-height: 1.35 !important;
           }
         }
       `}</style>
@@ -194,9 +212,9 @@ export default function DigitalReceiptPage({ params }) {
           <p className="mt-2 text-sm font-semibold text-[#64748B]">Folio relacionado: {data.folio}</p>
         </header>
 
-        <ol className="mt-8 space-y-4">
-          {DEFAULT_POLICIES.map((policy, index) => (
-            <li key={`${policy}-${index}`} className="grid grid-cols-[34px_1fr] gap-3 rounded-[6px] border border-[#EBEBEB] p-4">
+        <ol className="policy-list mt-8 space-y-3">
+          {SERVICE_POLICIES.map((policy, index) => (
+            <li key={`${policy}-${index}`} className="policy-item grid grid-cols-[34px_1fr] gap-3 rounded-[6px] border border-[#EBEBEB] p-4">
               <span className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#F3F4F6] text-sm font-black text-[#0055FF]">{index + 1}</span>
               <p className="text-sm font-medium leading-6 text-[#0A0A0A]">{policy}</p>
             </li>

@@ -34,9 +34,16 @@ function absoluteFileUrl(value) {
   return url;
 }
 
+function withSessionToken(url) {
+  const value = absoluteFileUrl(url);
+  if (!value || !value.includes("/uploads/") || value.includes("token=")) return value;
+  const token = getToken();
+  return token ? `${value}${value.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : value;
+}
+
 function signedReceiptUrl(repair) {
   const document = repair.documentos?.reciboFirmado || repair.reciboFirmado || {};
-  return absoluteFileUrl(
+  return withSessionToken(
     repair.reciboFirmadoUrl ||
     document.url ||
     document.signedUrl ||
@@ -49,6 +56,7 @@ function signedReceiptUrl(repair) {
 
 function mapRepair(repair) {
   const cliente = repair.cliente || {};
+  const contacto = repair.contactoReparacion || {};
   const equipo = repair.equipo || {};
   const history = Array.isArray(repair.historial) ? repair.historial : [];
   const lastHistory = history.length > 0 ? history[history.length - 1] : null;
@@ -56,8 +64,10 @@ function mapRepair(repair) {
   return {
     folio: repair.folio,
     client: cliente.nombre || "Cliente sin nombre",
-    phone: cliente.telefono || cliente.correo || "Sin contacto",
+    phone: contacto.telefono || contacto.correo || cliente.telefono || cliente.correo || "Sin contacto",
     email: cliente.correo || "",
+    repairContact: contacto.nombre || "",
+    ownerClient: cliente.nombre || "",
     linkActivo: Boolean(repair.linkActivo),
     device: [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || "Equipo sin modelo",
     deviceType: equipo.tipo || "Equipo",
@@ -115,7 +125,7 @@ export default function ReparacionesPage() {
       if (statusFilter !== "todos" && repair.status !== statusFilter) return false;
       if (!q) return true;
 
-      return [repair.folio, repair.client, repair.phone, repair.email, repair.device, repair.deviceType, repair.tech, repair.receivedBy, repair.date]
+      return [repair.folio, repair.client, repair.repairContact, repair.phone, repair.email, repair.device, repair.deviceType, repair.tech, repair.receivedBy, repair.date]
         .join(" ")
         .toLowerCase()
         .includes(q);

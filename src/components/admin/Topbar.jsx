@@ -265,10 +265,7 @@ export default function Topbar({ onMenuToggle, onSidebarCollapseToggle, sidebarC
 
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 origin-top-right rounded-md border border-[#DDE5EE] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
-                <div className="border-b border-[#E5EAF0] px-4 py-3">
-                  <h3 className="text-sm font-bold text-[#0F172A]">Recordatorios</h3>
-                  <p className="mt-0.5 text-xs font-semibold text-[#64748B]">Datos reales de reparaciones activas.</p>
-                </div>
+
                 <div className="max-h-80 overflow-y-auto p-2">
                   {notificationsLoading ? (
                     <p className="px-2 py-3 text-sm font-semibold text-[#334155]">Cargando recordatorios...</p>

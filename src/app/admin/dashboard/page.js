@@ -45,6 +45,8 @@ function mapRepair(repair) {
     estado: repair.estado || "recibido",
     tecnico: repair.tecnico || "Sin asignar",
     fecha: repair.creadoEn || repair.fechaIngreso || "",
+    fechaIngreso: repair.fechaIngreso || "",
+    entregadoEn: repair.entregadoEn || "",
     fechaEntregaEstimada:
       repair.fechaEntregaEstimada ||
       repair.entregaEstimada ||
@@ -260,17 +262,31 @@ export default function DashboardPage() {
     .sort((a, b) => String(a.fechaEntregaEstimada).localeCompare(String(b.fechaEntregaEstimada)))
     .slice(0, 4);
 
-  const resumenDia = reparacionesPeriodo.reduce(
+  const resumenDia = reparaciones.reduce(
     (acc, item) => {
-      const fecha = toDateOnly(item.fecha);
+      const fechaIngreso = toDateOnly(item.fechaIngreso || item.fecha);
+      const fechaEntrega = toDateOnly(item.entregadoEn);
 
-      if (fecha === hoyIso) {
+      if (fechaIngreso === hoyIso) {
         acc.recibidos += 1;
 
         if (!["recibido"].includes(item.estado)) acc.iniciadas += 1;
+      }
 
-        if (item.estado === "entregado") {
-          acc.entregas += 1;
+      if (item.estado === "entregado" && fechaEntrega === hoyIso) {
+        acc.entregas += 1;
+      }
+
+      const historialPagos = Array.isArray(item.pago?.historialPagos) ? item.pago.historialPagos : [];
+      historialPagos.forEach((pago) => {
+        if (toDateOnly(pago.fecha) === hoyIso) {
+          acc.ingresos += Number(pago.monto || 0);
+        }
+      });
+
+      if (toDateOnly(item.fecha) === hoyIso && Number(item.anticipo?.monto || 0) > 0) {
+        const hasInitialPayment = historialPagos.some((pago) => String(pago.tipo || "") === "pago_inicial");
+        if (!hasInitialPayment) {
           acc.ingresos += Number(item.anticipo?.monto || 0);
         }
       }

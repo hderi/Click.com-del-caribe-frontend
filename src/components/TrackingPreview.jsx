@@ -37,7 +37,22 @@ const STATUS_LABELS = {
   esperando_refaccion: "En espera de refacción",
   finalizado: "Listo para entrega",
   entregado: "Entregado",
+  abierta: "Abierta",
+  finalizada: "Finalizada",
+  cerrada: "Cerrada",
 };
+
+function textValue(...values) {
+  const found = values.find((item) => item !== undefined && item !== null && String(item).trim() !== "");
+  return found === undefined ? "-" : String(found);
+}
+
+function photoUrl(foto) {
+  const raw = typeof foto === "string" ? foto : foto?.url || foto?.ruta || foto?.src || foto?.dataUrl || "";
+  if (!raw) return "";
+  if (raw.startsWith("data:") || raw.startsWith("http")) return raw;
+  return `${API_BASE}${raw.startsWith("/") ? raw : `/${raw}`}`;
+}
 
 export default function TrackingPreview({ folio, token }) {
   const cleanFolio =
@@ -109,7 +124,16 @@ export default function TrackingPreview({ folio, token }) {
   const historial = Array.isArray(data.historial) ? data.historial : [];
   const ultimoAvance = historial.length ? historial[historial.length - 1] : null;
   const fotos = Array.isArray(data.fotos) ? data.fotos : [];
+  const tipo = String(data.tipo || data.tipoSeguimiento || "").toLowerCase() === "garantia" ? "garantia" : "reparacion";
+  const isWarranty = tipo === "garantia";
   const saldo = Number(data.pago?.saldoPendiente || 0);
+  const folioPrincipal = textValue(data.folio, cleanFolio);
+  const folioRelacionado = textValue(data.reparacionFolio, data.rxOriginal, data.folioOriginal, data.reparacion?.folio);
+  const equipo = data.equipo || data.reparacion?.equipo || {};
+  const title = isWarranty ? "Garantía en seguimiento" : "Reparación en seguimiento";
+  const lastFallback = isWarranty
+    ? "Tu garantía fue registrada. El taller publicará avances visibles cuando existan actualizaciones."
+    : "Tu orden fue registrada. El taller publicará avances visibles para el cliente cuando existan actualizaciones.";
 
   return (
     <main
@@ -126,14 +150,20 @@ export default function TrackingPreview({ folio, token }) {
             />
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#ff6b00]">
-                Seguimiento privado
+                {isWarranty ? "Garantía privada" : "Seguimiento privado"}
               </p>
               <h1 className="mt-2 text-2xl font-black text-[#07152b]">
-                {data.folio || cleanFolio}
+                {folioPrincipal}
               </h1>
               <p className="mt-1 text-sm font-semibold text-[#52647d]">
-                CLICK.COM del Caribe
+                {title}
               </p>
+              <Link
+                href="/politicas-servicio"
+                className="mt-4 inline-flex text-sm font-black text-[#0055FF] hover:underline"
+              >
+                Ver politicas de servicio
+              </Link>
             </div>
           </div>
 
@@ -150,19 +180,27 @@ export default function TrackingPreview({ folio, token }) {
           />
           <InfoCell
             label="Equipo"
-            value={[data.equipo?.marca, data.equipo?.modelo].filter(Boolean).join(" ") || data.equipo?.tipo || "-"}
-            detail={data.equipo?.tipo || "Sin tipo registrado"}
+            value={[equipo?.marca, equipo?.modelo].filter(Boolean).join(" ") || equipo?.tipo || "-"}
+            detail={equipo?.tipo || "Sin tipo registrado"}
           />
           <InfoCell
-            label="Fecha estimada"
-            value={data.fechaEntregaEstimada ? formatDate(data.fechaEntregaEstimada) : "Por confirmar"}
-            detail="El taller actualizará este dato"
+            label={isWarranty ? "Vence" : "Fecha estimada"}
+            value={isWarranty ? formatDate(data.vence || data.fechaVence || data.vencimiento) : (data.fechaEntregaEstimada ? formatDate(data.fechaEntregaEstimada) : "Por confirmar")}
+            detail={isWarranty && folioRelacionado !== "-" ? `Orden original: ${folioRelacionado}` : "El taller actualizará este dato"}
           />
-          <InfoCell
-            label="Saldo"
-            value={saldo > 0 ? `$${saldo.toLocaleString("es-MX")}` : "Sin saldo pendiente"}
-            detail="Solo si aplica"
-          />
+          {isWarranty ? (
+            <InfoCell
+              label="Tipo"
+              value="Garantía"
+              detail={folioRelacionado !== "-" ? `Orden original: ${folioRelacionado}` : "Sin pago en garantía"}
+            />
+          ) : (
+            <InfoCell
+              label="Saldo"
+              value={saldo > 0 ? `$${saldo.toLocaleString("es-MX")}` : "Sin saldo pendiente"}
+              detail="Solo si aplica"
+            />
+          )}
         </div>
 
         <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
@@ -176,7 +214,7 @@ export default function TrackingPreview({ folio, token }) {
                 {ultimoAvance?.titulo || "Equipo registrado"}
               </p>
               <p className="mt-2 text-sm font-semibold leading-6 text-[#52647d]">
-                {ultimoAvance?.descripcion ||
+                {ultimoAvance?.descripcion || lastFallback ||
                   "Tu orden fue registrada. El taller publicará avances visibles para el cliente cuando existan actualizaciones."}
               </p>
               {ultimoAvance ? (
@@ -209,9 +247,7 @@ export default function TrackingPreview({ folio, token }) {
                       {Array.isArray(item.fotos) && item.fotos.length ? (
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {item.fotos.map((foto, fotoIndex) => {
-                            const src = foto?.url?.startsWith("http")
-                              ? foto.url
-                              : `${API_BASE}${foto?.url || ""}`;
+                            const src = photoUrl(foto);
                             return (
                               <a
                                 key={fotoIndex}
@@ -249,9 +285,7 @@ export default function TrackingPreview({ folio, token }) {
             {fotos.length ? (
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {fotos.map((foto, index) => {
-                  const src = foto?.url?.startsWith("http")
-                    ? foto.url
-                    : `${API_BASE}${foto?.url || ""}`;
+                  const src = photoUrl(foto);
                   return (
                     <a
                       key={index}

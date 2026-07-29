@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { getToken } from "@/lib/authStorage";
+import { getSessionUser, getToken } from "@/lib/authStorage";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import FormSection from "@/components/admin/FormSection";
@@ -25,12 +25,6 @@ const BRAND_OPTIONS = [
   "Lenovo", "LG", "Logitech", "Microsoft", "MSI", "Qian", "Samsung", "Seagate",
   "Sony", "Toshiba", "Ubiquiti", "Xerox", "Otro"
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
-
-const SERVICE_TECHS = [
-  { value: "humberto", label: "Humberto" },
-  { value: "milton", label: "Milton" },
-  { value: "christian", label: "Christian" },
-].sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
 
 const CONTACT_CHANNELS = [
   { value: "whatsapp", label: "WhatsApp" },
@@ -70,10 +64,11 @@ const YES_NO_OPTIONS = [
 
 const PAYMENT_METHODS = [
   { value: "efectivo", label: "Efectivo" },
-  { value: "tarjeta_debito", label: "Tarjeta de débito" },
-  { value: "tarjeta_credito", label: "Tarjeta de crédito" },
+  { value: "tarjeta debito", label: "Tarjeta de débito" },
+  { value: "tarjeta credito", label: "Tarjeta de crédito" },
   { value: "transferencia", label: "Transferencia" },
   { value: "cheque", label: "Cheque" },
+  { value: "por definir", label: "Por definir" },
 ];
 
 const GUARANTEE_OPTIONS = [
@@ -84,7 +79,7 @@ const GUARANTEE_OPTIONS = [
 const DEFAULT_REPAIR_OPTIONS = {
   tiposEquipo: DEVICE_TYPES,
   marcas: BRAND_OPTIONS,
-  tecnicos: SERVICE_TECHS,
+  tecnicos: [],
   canalesContacto: CONTACT_CHANNELS,
   metodosAutorizacion: AUTHORIZATION_METHODS,
   accesorios: ACCESSORIES,
@@ -112,6 +107,10 @@ function createInitialState() {
     clientPhone: "",
     clientEmail: "",
     clientType: "Particular",
+    hasRepairContact: false,
+    repairContactName: "",
+    repairContactPhone: "",
+    repairContactEmail: "",
     contactChannel: "whatsapp",
     deviceType: "",
     deviceOther: "",
@@ -226,6 +225,7 @@ function SearchableChoiceField({
   error,
   allowCustom = false,
   customLabel = "Otro",
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -256,6 +256,7 @@ function SearchableChoiceField({
           type="text"
           value={open ? query : displayValue}
           onFocus={() => {
+            if (disabled) return;
             setOpen(true);
             setQuery("");
           }}
@@ -263,21 +264,24 @@ function SearchableChoiceField({
             window.setTimeout(() => setOpen(false), 120);
           }}
           onChange={(event) => {
+            if (disabled) return;
             setQuery(event.target.value);
             setOpen(true);
             if (allowCustom) onChange({ target: { value: event.target.value } });
           }}
           placeholder={placeholder}
           required={required}
+          disabled={disabled}
           className={`w-full rounded-md border bg-white py-2 pl-3 pr-10 text-sm leading-5 text-[#111827] outline-none transition-colors placeholder:text-[#9ca3af] ${
             error ? "border-red-300 focus:border-red-500" : "border-[#d1d5db] focus:border-[#2563eb]"
-          }`}
+          } disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-[#64748b]`}
           autoComplete="off"
         />
         <button
           type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-[#526174] hover:bg-[#eef2f7]"
+          onClick={() => !disabled && setOpen((current) => !current)}
+          disabled={disabled}
+          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-[#526174] hover:bg-[#eef2f7] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Abrir opciones"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -358,9 +362,7 @@ function PhotoDropPreview({ files, onChange }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-black text-[#102033]">Fotos al recibir</p>
-          <p className="mt-1 text-xs font-bold leading-5 text-[#64748B]">
-            Evidencia para rayones, golpes, pantalla, accesorios o estado general.
-          </p>
+
         </div>
         
         <div className="flex items-center gap-2">
@@ -414,12 +416,16 @@ export default function NewRepairForm() {
   const [createdRepair, setCreatedRepair] = useState(null);
   const [repairOptions, setRepairOptions] = useState(DEFAULT_REPAIR_OPTIONS);
   const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [clients, setClients] = useState([]);
   const [clientMode, setClientMode] = useState("nuevo");
   const [selectedClientId, setSelectedClientId] = useState("");
 
   const deviceTypeOptions = useMemo(() => normalizeOptions(repairOptions.tiposEquipo, DEVICE_TYPES), [repairOptions.tiposEquipo]);
   const brandOptions = useMemo(() => normalizeOptions(repairOptions.marcas, BRAND_OPTIONS), [repairOptions.marcas]);
+  const currentRole = String(currentUser?.rol || currentUser?.role || "").toLowerCase();
+  const isAdminLike = ["admin", "gerencia"].includes(currentRole);
+  const currentUserName = currentUser?.nombre || currentUser?.name || currentUser?.usuario || currentUser?.username || "";
   const activeUsers = useMemo(() => {
     return Array.isArray(users)
       ? users.filter((user) => user.activo !== false && user.active !== false && user.estado !== "Bloqueado")
@@ -434,14 +440,15 @@ export default function NewRepairForm() {
       })
       .map((user) => {
         const label = user.nombre || user.name || user.usuario || user.username;
-        return label ? { value: label, label } : null;
+        const value = user.usuario || user.username || label;
+        return label && value ? { value, label } : null;
       })
       .filter(Boolean)
       .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
   }, [activeUsers]);
 
   const receptionOptions = useMemo(() => {
-    return activeUsers
+    const options = activeUsers
       .filter((user) => {
         const role = String(user.rol || user.role || "").toLowerCase();
         return ["ventas", "recepcion", "recepción", "tecnico", "técnico"].includes(role);
@@ -452,7 +459,10 @@ export default function NewRepairForm() {
       })
       .filter(Boolean)
       .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
-  }, [activeUsers]);
+    if (!currentUserName || isAdminLike) return options;
+    const currentOption = { value: currentUserName, label: currentUserName };
+    return options.some((item) => item.value === currentOption.value) ? options : [currentOption, ...options];
+  }, [activeUsers, currentUserName, isAdminLike]);
   const contactChannelOptions = useMemo(() => normalizeOptions(repairOptions.canalesContacto, CONTACT_CHANNELS), [repairOptions.canalesContacto]);
   const authorizationOptions = useMemo(() => normalizeOptions(repairOptions.metodosAutorizacion, AUTHORIZATION_METHODS), [repairOptions.metodosAutorizacion]);
   const accessoryOptions = useMemo(() => normalizeOptions(repairOptions.accesorios, ACCESSORIES), [repairOptions.accesorios]);
@@ -480,6 +490,8 @@ export default function NewRepairForm() {
   const contactText = String(contactChannelOptions.find((item) => item.value === form.contactChannel)?.label || form.contactChannel).toLowerCase();
   const canUseWhatsapp = contactText.includes("whatsapp") || contactText.includes("ambos");
   const canUseEmail = contactText.includes("gmail") || contactText.includes("correo") || contactText.includes("ambos");
+  const effectivePhone = form.hasRepairContact ? form.repairContactPhone : form.clientPhone;
+  const effectiveEmail = form.hasRepairContact ? form.repairContactEmail : form.clientEmail;
   const warrantyText = String(guaranteeOptions.find((item) => item.value === form.warrantyApplies)?.label || form.warrantyApplies).toLowerCase();
   const warrantyDisabled = warrantyText.includes("no");
 
@@ -489,6 +501,15 @@ export default function NewRepairForm() {
       try {
         const token = getToken();
         if (!token) return;
+        const sessionUser = getSessionUser();
+        if (!ignore) {
+          setCurrentUser(sessionUser);
+          const sessionName = sessionUser?.nombre || sessionUser?.name || sessionUser?.usuario || sessionUser?.username || "";
+          const role = String(sessionUser?.rol || sessionUser?.role || "").toLowerCase();
+          if (sessionName && !["admin", "gerencia"].includes(role)) {
+            setForm((current) => ({ ...current, receivedBy: current.receivedBy || sessionName }));
+          }
+        }
         const configResponse = await fetch(`${API_URL}/api/configuracion/opciones_reparacion`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -499,7 +520,7 @@ export default function NewRepairForm() {
           }
         }
 
-        const response = await fetch(`${API_URL}/api/usuarios`, {
+        const response = await fetch(`${API_URL}/api/usuarios/tecnicos`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const clientsResponse = await fetch(`${API_URL}/api/clientes?limit=200`, {
@@ -507,7 +528,7 @@ export default function NewRepairForm() {
         });
         const data = response.ok ? await response.json() : {};
         const clientsData = clientsResponse.ok ? await clientsResponse.json() : {};
-        const nextUsers = Array.isArray(data.usuarios) ? data.usuarios : [];
+        const nextUsers = Array.isArray(data.tecnicos) ? data.tecnicos : [];
         const nextClients = Array.isArray(clientsData.clientes) ? clientsData.clientes : [];
         if (!ignore) {
           setUsers(nextUsers);
@@ -580,6 +601,10 @@ export default function NewRepairForm() {
         clientPhone: "",
         clientEmail: "",
         clientType: "Particular",
+        hasRepairContact: false,
+        repairContactName: "",
+        repairContactPhone: "",
+        repairContactEmail: "",
       }));
     }
   };
@@ -595,6 +620,10 @@ export default function NewRepairForm() {
       clientPhone: client.telefono || client.phone || "",
       clientEmail: client.correo || client.email || "",
       clientType: client.tipo || client.type || "Particular",
+      hasRepairContact: false,
+      repairContactName: "",
+      repairContactPhone: "",
+      repairContactEmail: "",
     }));
     setErrors((prev) => ({ ...prev, selectedClient: null, clientName: null, clientPhone: null, clientEmail: null }));
   };
@@ -646,8 +675,9 @@ export default function NewRepairForm() {
     const newErrors = {};
     if (clientMode === "existente" && !selectedClientId) newErrors.selectedClient = "Selecciona un cliente existente";
     if (!form.clientName.trim()) newErrors.clientName = "El nombre es requerido";
-    if (canUseWhatsapp && !form.clientPhone.trim()) newErrors.clientPhone = "El teléfono es requerido para WhatsApp";
-    if (canUseEmail && !form.clientEmail.trim()) newErrors.clientEmail = "El correo es requerido para Gmail";
+    if (canUseWhatsapp && !effectivePhone.trim()) newErrors[form.hasRepairContact ? "repairContactPhone" : "clientPhone"] = "El teléfono es requerido para WhatsApp";
+    if (canUseEmail && !effectiveEmail.trim()) newErrors[form.hasRepairContact ? "repairContactEmail" : "clientEmail"] = "El correo es requerido para Gmail";
+    if (form.hasRepairContact && !form.repairContactName.trim()) newErrors.repairContactName = "Indica quién recibirá el seguimiento";
     if (!form.deviceType) newErrors.deviceType = "Selecciona un tipo de equipo";
     if (form.deviceType === "otro" && !form.deviceOther.trim()) newErrors.deviceOther = "Escribe qué tipo de equipo es";
     if (!form.brand.trim()) newErrors.brand = "La marca es requerida";
@@ -678,6 +708,14 @@ export default function NewRepairForm() {
         correo: sanitizeEmail(form.clientEmail),
         tipo: form.clientType,
       },
+      contactoReparacion: form.hasRepairContact
+        ? {
+            usaContactoDistinto: true,
+            nombre: sanitizeText(form.repairContactName, 120),
+            telefono: sanitizePhone(form.repairContactPhone),
+            correo: sanitizeEmail(form.repairContactEmail),
+          }
+        : {},
       equipo: {
         tipo: deviceLabel,
         marca: sanitizeText(brandLabel, 80),
@@ -828,7 +866,7 @@ export default function NewRepairForm() {
 
           <div className="rounded-[24px] border border-[#C9D8E5] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
   
-            <p className="mt-2 text-sm leading-6 text-[#526174]">Comparte el seguimiento por el canal elegido o imprime la orden para el control interno.</p>
+       
             <div className="mt-5 grid grid-cols-1 gap-3">
               {showWhatsapp && (
                 <a href={whatsappUrl} target="_blank" rel="noreferrer" className="rounded-2xl bg-[#22A06B] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-[#15803D]">Enviar por WhatsApp</a>
@@ -916,13 +954,40 @@ export default function NewRepairForm() {
           <InputField id="client-phone" label="Teléfono" type="tel" placeholder="" value={form.clientPhone} onChange={set("clientPhone")} required={canUseWhatsapp} error={errors.clientPhone} />
           <InputField id="client-email" label="Correo electrónico" type="email" placeholder="" value={form.clientEmail} onChange={set("clientEmail")} required={canUseEmail} error={errors.clientEmail} />
         </div>
+        <div className="mt-4 rounded-xl border border-[#D5E2EC] bg-[#F8FBFD] p-4">
+          <label className="flex cursor-pointer items-start gap-3 text-sm font-bold text-[#334155]">
+            <input
+              type="checkbox"
+              checked={form.hasRepairContact}
+              onChange={(event) => setForm((prev) => ({
+                ...prev,
+                hasRepairContact: event.target.checked,
+                repairContactName: event.target.checked ? prev.repairContactName : "",
+                repairContactPhone: event.target.checked ? prev.repairContactPhone : "",
+                repairContactEmail: event.target.checked ? prev.repairContactEmail : "",
+              }))}
+              className="mt-1 h-4 w-4 accent-[#0055FF]"
+            />
+            <span>
+              Esta reparación tiene contacto diferente al cliente titular
+
+            </span>
+          </label>
+          {form.hasRepairContact && (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <InputField id="repair-contact-name" label="Contacto de reparación" value={form.repairContactName} onChange={set("repairContactName")} required error={errors.repairContactName} />
+              <InputField id="repair-contact-phone" label="Teléfono seguimiento" type="tel" value={form.repairContactPhone} onChange={set("repairContactPhone")} required={canUseWhatsapp} error={errors.repairContactPhone} />
+              <InputField id="repair-contact-email" label="Correo seguimiento" type="email" value={form.repairContactEmail} onChange={set("repairContactEmail")} required={canUseEmail} error={errors.repairContactEmail} />
+            </div>
+          )}
+        </div>
       </FormSection>
 
       <FormSection title="Datos del equipo" description="">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectField id="device-type" label="Tipo de equipo" value={form.deviceType} onChange={set("deviceType")} options={deviceTypeOptions} placeholder="Seleccionar tipo..." required error={errors.deviceType} />
           {form.deviceType === "otro" && (
-            <InputField id="device-other" label="Especificar equipo" placeholder="Ej: monitor, proyector, punto de venta" value={form.deviceOther} onChange={set("deviceOther")} required error={errors.deviceOther} />
+            <InputField id="device-other" label="Especificar equipo" placeholder="" value={form.deviceOther} onChange={set("deviceOther")} required error={errors.deviceOther} />
           )}
          <InputField
   id="brand"
@@ -949,7 +1014,7 @@ export default function NewRepairForm() {
       </FormSection>
 
       <FormSection title="Falla o solicitud reportada" description="">
-        <TextAreaField id="problem" label="Falla o solicitud reportada" value={form.problem} onChange={set("problem")} required error={errors.problem} placeholder="" rows={4} />
+        <TextAreaField id="problem"  value={form.problem} onChange={set("problem")} required error={errors.problem} placeholder="" rows={4} />
       </FormSection>
 
       <FormSection title="Recepción interna" description="">
@@ -962,6 +1027,8 @@ export default function NewRepairForm() {
             options={receptionOptions}
             placeholder="Seleccionar quién recibió..."
             required
+            allowCustom={false}
+            disabled={!isAdminLike && Boolean(currentUserName)}
             error={errors.receivedBy}
           />
           <InputField id="entry-time" label="Hora de entrada" type="time" value={form.entryTime} onChange={set("entryTime")} />
@@ -1029,7 +1096,7 @@ export default function NewRepairForm() {
             <div className="rounded-2xl border border-[rgba(180,95,34,0.22)] bg-[#F7F2EC] p-4 shadow-[0_0_24px_rgba(180,95,34,0.08)]">
               <p className="m-0 text-[11px] font-black uppercase tracking-[0.12em] text-[#64748B]">Saldo pendiente</p>
               <p className="m-0 mt-2 text-3xl font-black text-[#B45F22]">${money(balanceDue)}</p>
-              <p className="m-0 mt-2 text-xs font-bold leading-5 text-[#64748B]">Se calcula con costo del servicio menos pago recibido.</p>
+              <p className="m-0 mt-2 text-xs font-bold leading-5 text-[#64748B]"></p>
             </div>
           </div>
         </div>

@@ -31,9 +31,54 @@ function repairStatusLabel(status) {
   return labels[status] || status || "Recibido";
 }
 
+function warrantyPhaseLabel(status) {
+  const labels = {
+    abierta: "Abierta",
+    diagnostico: "Diagnostico",
+    en_reparacion: "En reparacion",
+    finalizada: "Finalizada",
+    cerrada: "Cerrada",
+  };
+  return labels[status] || status || "Abierta";
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dateOnly(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function addDays(value, days) {
+  const parsed = parseDate(value);
+  if (!parsed) return "";
+  parsed.setDate(parsed.getDate() + Number(days || 0));
+  return dateOnly(parsed.toISOString());
+}
+
+function formatDate(value) {
+  const parsed = parseDate(value);
+  if (!parsed) return "-";
+  return parsed.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function warrantyValidity(warranty) {
+  const repair = warranty.reparacion || {};
+  const days = Number(repair.garantia?.dias || 0);
+  const start = repair.entregadoEn || repair.actualizadoEn || warranty.creadoEn;
+  const vence = days > 0 ? addDays(start, days) : "";
+  const expired = vence && vence < dateOnly(new Date().toISOString());
+  return { vence, label: expired ? "Vencida" : "Vigente", expired };
+}
+
 export default function ClienteDetallePage({ params }) {
   const [clients, setClients] = useState([]);
   const [repairs, setRepairs] = useState([]);
+  const [warranties, setWarranties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -47,16 +92,19 @@ export default function ClienteDetallePage({ params }) {
       try {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [clientsResponse, repairsResponse] = await Promise.all([
+        const [clientsResponse, repairsResponse, warrantiesResponse] = await Promise.all([
           fetch(`${API_URL}/api/clientes`, { headers }),
           fetch(`${API_URL}/api/reparaciones`, { headers }),
+          fetch(`${API_URL}/api/garantias?limit=200`, { headers }),
         ]);
         const clientsData = await clientsResponse.json();
         const repairsData = await repairsResponse.json();
+        const warrantiesData = await warrantiesResponse.json();
 
         if (!ignore) {
           setClients((clientsData.clientes || clientsData || []).map(normalizeClient));
           setRepairs(repairsData.reparaciones || repairsData || []);
+          setWarranties(warrantiesData.garantias || warrantiesData || []);
         }
       } finally {
         if (!ignore) setLoading(false);
@@ -86,6 +134,20 @@ export default function ClienteDetallePage({ params }) {
       return Boolean(samePhone || sameEmail);
     });
   }, [repairs, client]);
+
+  const clientWarranties = useMemo(() => {
+    if (!client) return [];
+    return warranties.filter((warranty) => {
+      const repair = warranty.reparacion || {};
+      const repairClient = repair.cliente || {};
+      const repairClientId = repair.clienteId || repairClient.id || "";
+      if (repairClientId) return String(repairClientId) === String(client.id);
+
+      const samePhone = repairClient.telefono && client.phone && String(repairClient.telefono).replace(/\D/g, "") === String(client.phone).replace(/\D/g, "");
+      const sameEmail = repairClient.correo && client.email && String(repairClient.correo).toLowerCase() === String(client.email).toLowerCase();
+      return Boolean(samePhone || sameEmail);
+    });
+  }, [warranties, client]);
 
   useEffect(() => {
     if (client) {
@@ -217,6 +279,37 @@ export default function ClienteDetallePage({ params }) {
                 <span className="justify-self-end rounded-md border border-[#D1D5DB] bg-[#F8FAFC] px-3 py-1 text-xs font-bold text-[#374151]">{repairStatusLabel(repair.estado)}</span>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section id="garantias" className="overflow-hidden rounded-md border border-[#E5E7EB] bg-white">
+        <div className="border-b border-[#E5E7EB] px-5 py-4">
+          <h2 className="text-lg font-bold text-[#0A0A0A]">Garantias vinculadas</h2>
+        </div>
+        {clientWarranties.length === 0 ? (
+          <p className="px-5 py-5 text-sm text-[#6B7280]"></p>
+        ) : (
+          <div>
+            {clientWarranties.map((warranty) => {
+              const validity = warrantyValidity(warranty);
+              const repair = warranty.reparacion || {};
+              const equipo = repair.equipo || {};
+              return (
+                <div key={warranty.folio} className="grid gap-3 border-b border-[#E5E7EB] px-5 py-4 last:border-b-0 md:grid-cols-[110px_1fr_140px_140px_90px] md:items-center">
+                  <p className="font-mono text-sm font-black text-[#0077B6]">
+                    {warranty.folio}
+                    <span className="mt-1 block text-[11px] font-bold text-[#526174]">RX {warranty.reparacionFolio || repair.folio || "-"}</span>
+                  </p>
+                  <p className="text-sm font-semibold text-[#111827]">{[equipo.marca, equipo.modelo].filter(Boolean).join(" ") || "Equipo"}</p>
+                  <span className="justify-self-start rounded-full border border-[#B7D7F3] bg-[#F2F8FD] px-3 py-1 text-xs font-bold text-[#0077B6]">{warrantyPhaseLabel(warranty.estado)}</span>
+                  <span className={`justify-self-start rounded-full border px-3 py-1 text-xs font-bold ${validity.expired ? "border-[#F5C58B] bg-[#FFF5E8] text-[#A14E00]" : "border-[#A8DDC0] bg-[#F0FAF4] text-[#13753A]"}`}>
+                    {validity.label}
+                  </span>
+                  <Link href={`/admin/garantias/${encodeURIComponent(warranty.folio)}`} className="text-sm font-bold text-[#0055FF] hover:underline">Ver</Link>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

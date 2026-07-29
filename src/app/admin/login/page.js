@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import LoginCard from "@/components/admin/LoginCard";
 import LoginBackground from "@/components/admin/LoginBackground";
 import { setSession } from "@/lib/authStorage";
+import { defaultPathForUser } from "@/lib/roleAccess";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -37,7 +38,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      router.replace("/admin/dashboard");
+      router.replace(defaultPathForUser(data.usuario));
     } catch (err) {
       setError(err.message || "No se pudo iniciar sesión.");
     } finally {

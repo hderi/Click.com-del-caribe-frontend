@@ -28,11 +28,10 @@ export const ROLE_ACCESS = {
     "/admin/perfil",
   ],
   tecnico: [
-    "/admin/dashboard",
     "/admin/reparaciones",
+    "/admin/clientes",
     "/admin/equipos",
     "/admin/garantias",
-    "/admin/alertas",
     "/admin/perfil",
   ],
 };
@@ -49,6 +48,11 @@ export function canAccessPath(user, pathname) {
   const allowed = ROLE_ACCESS[role] || [];
 
   return allowed.some((basePath) => path === basePath || path.startsWith(`${basePath}/`));
+}
+
+export function defaultPathForUser(user) {
+  const role = normalizeRole(user?.rol || user?.role);
+  return ROLE_ACCESS[role]?.[0] || "/admin/reparaciones";
 }
 
 export function filterNavItemsForUser(items, user) {

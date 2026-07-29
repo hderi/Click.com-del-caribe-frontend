@@ -9,7 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const ROLES = [
   { value: "admin", label: "Administrador", limit: 2,  },
   { value: "ventas", label: "Ventas", limit: 2, },
-  { value: "tecnico", label: "Técnico", limit: 20, },
+  { value: "tecnico", label: "Técnico", limit: 5, },
 ];
 
 function authHeaders() {

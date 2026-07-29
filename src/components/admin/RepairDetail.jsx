@@ -302,6 +302,8 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
 
   const folio = value(current.folio, current.id);
   const cliente = current.cliente || {};
+  const contacto = current.contactoReparacion || {};
+  const hasRepairContact = Boolean(contacto.nombre || contacto.telefono || contacto.correo);
   const equipo = current.equipo || {};
   const pago = current.pago || current.payment || {};
   const anticipo = current.anticipo || current.advance || {};
@@ -381,11 +383,21 @@ export default function RepairDetail({ repair, initialView = "ficha", onRepairUp
         </header>
 
         <div className="repair-print-grid grid gap-4 lg:grid-cols-2">
-          <Panel title="Datos del cliente">
+          <Panel title="Cliente titular / facturación">
             <Field label="Nombre">{value(cliente.nombre, current.clienteNombre, current.client)}</Field>
             <Field label="Teléfono">{value(cliente.telefono, current.telefono, current.phone)}</Field>
             <Field label="Correo">{value(cliente.correo, current.correo, current.email)}</Field>
-            <Field label="Contacto">{value(current.canalContacto, current.contactChannel)}</Field>
+            <Field label="Canal">{value(current.canalContacto, current.contactChannel)}</Field>
+            {hasRepairContact ? (
+              <>
+                <div className="my-3 border-t border-[#DDE5EE]" />
+                <Field label="Servicio para">{value(contacto.nombre)}</Field>
+                <Field label="Tel. seguimiento">{value(contacto.telefono)}</Field>
+                <Field label="Correo seguimiento">{value(contacto.correo)}</Field>
+              </>
+            ) : (
+              <Field label="Servicio para">Mismo cliente titular</Field>
+            )}
           </Panel>
 
           <Panel title="Datos del equipo">
@@ -498,7 +510,7 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
     tecnico: repair.tecnico || "",
     diagnostico: "",
     observacion: "",
-    visibleCliente: false,
+    visibleCliente: true,
     costoServicio: String(value(pago.costoServicio, pago.costo, repair.costoServicio, "")),
     nuevoPago: "",
     formaPago: value(anticipo.formaPago, pago.metodoPago, repair.metodoPago, ""),
@@ -517,7 +529,13 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
   const quedariaLiquidado = Number(form.costoServicio || 0) > 0 && saldoDespues === 0;
 
   function set(name) {
-    return (event) => setForm((current) => ({ ...current, [name]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
+    return (event) => {
+      const nextValue = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+      setForm((current) => ({
+        ...current,
+        [name]: nextValue,
+      }));
+    };
   }
 
   function setNuevoPago(event) {
@@ -567,7 +585,7 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
           estado: form.estado,
           titulo: `Actualización: ${statusLabel(form.estado)}`,
           descripcion: [form.diagnostico.trim(), form.observacion.trim()].filter(Boolean).join("\n\n"),
-          visibleCliente: true,
+          visibleCliente: form.visibleCliente,
           tecnico: repair.tecnico || "Taller",
           fotos: newPhotos,
         };
@@ -642,7 +660,7 @@ function UpdateRepairPanel({ repair, folio, currentPhotos, onCancel, onUpdated }
             Marcar fotos nuevas como visibles para el cliente
           </label>
           <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#334155]">
-            <input type="checkbox" checked readOnly disabled />
+            <input type="checkbox" checked={form.visibleCliente} onChange={set("visibleCliente")} />
             Mostrar este avance en la página de seguimiento
           </label>
         </div>

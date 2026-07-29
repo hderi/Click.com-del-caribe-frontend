@@ -2,9 +2,17 @@
 
 import { getToken } from "@/lib/authStorage";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const STATUS_OPTIONS = [
+  { value: "abierta", label: "Abierta" },
+  { value: "diagnostico", label: "Diagnóstico" },
+  { value: "en_reparacion", label: "En reparación" },
+  { value: "finalizada", label: "Finalizada" },
+  { value: "cerrada", label: "Cerrada" },
+];
 
 function parseDate(value) {
   if (!value) return null;
@@ -41,17 +49,51 @@ function textValue(...values) {
   return value ? String(value).trim() : "-";
 }
 
-function statusInfo(warranty, vence) {
-  if (warranty.estado === "cerrada") return { label: "Cerrada", className: "border-[#C9D8E5] bg-[#EEF2F6] text-[#526174]" };
+function phaseInfo(warranty) {
+  const classes = {
+    abierta: "border-[#B7D7F3] bg-[#F2F8FD] text-[#0077B6]",
+    diagnostico: "border-[#F5C58B] bg-[#FFF5E8] text-[#A14E00]",
+    en_reparacion: "border-[#BFDBFE] bg-[#EFF6FF] text-[#0055FF]",
+    finalizada: "border-[#A8DDC0] bg-[#F0FAF4] text-[#13753A]",
+    cerrada: "border-[#C9D8E5] bg-[#EEF2F6] text-[#526174]",
+  };
+  const option = STATUS_OPTIONS.find((item) => item.value === warranty.estado) || STATUS_OPTIONS[0];
+  return { label: option.label, className: classes[warranty.estado] || classes.abierta };
+}
+
+function validityInfo(vence) {
   if (vence && vence < dateOnly(new Date().toISOString())) return { label: "Vencida", className: "border-[#F5C58B] bg-[#FFF5E8] text-[#A14E00]" };
   return { label: "Vigente", className: "border-[#A8DDC0] bg-[#F0FAF4] text-[#13753A]" };
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function fileUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  const absolute = url.startsWith("http") || url.startsWith("data:") ? url : `${API_URL}${url.startsWith("/") ? url : `/${url}`}`;
+  if (!absolute.includes("/uploads/") || absolute.includes("token=")) return absolute;
+  const token = getToken();
+  return token ? `${absolute}${absolute.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : absolute;
+}
+
 export default function WarrantyDetailPage({ params }) {
+  const searchParams = useSearchParams();
+  const vista = searchParams.get("vista") || "ficha";
   const [warranty, setWarranty] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [updateForm, setUpdateForm] = useState({ estado: "abierta", observacion: "", visibleCliente: true, fotos: [] });
 
   useEffect(() => {
     async function loadWarranty() {
@@ -65,6 +107,7 @@ export default function WarrantyDetailPage({ params }) {
         if (!response.ok) throw new Error(data.error || "Garantía no encontrada");
         setWarranty(data.garantia);
         setMessage(data.mensaje);
+        setUpdateForm((current) => ({ ...current, estado: data.garantia?.estado || "abierta" }));
       } catch (err) {
         setError(err.message || "Garantía no encontrada.");
         setWarranty(null);
@@ -74,6 +117,86 @@ export default function WarrantyDetailPage({ params }) {
     }
     loadWarranty();
   }, [params.id]);
+
+  async function openMessage(type) {
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_URL}/api/garantias/${encodeURIComponent(params.id)}/${type}`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo preparar el mensaje");
+      const url = type === "whatsapp" ? data.whatsappUrl : data.mailtoUrl;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setActionError(err.message || "No se pudo preparar el mensaje.");
+    }
+  }
+
+  async function uploadSignedReceipt(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setSaving(true);
+    setActionError("");
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const token = getToken();
+      const response = await fetch(`${API_URL}/api/garantias/${encodeURIComponent(params.id)}/recibo-firmado`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ reciboFirmado: { nombre: file.name, name: file.name, size: file.size, lastModified: file.lastModified, dataUrl } }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo subir el recibo firmado");
+      setWarranty(data.garantia);
+    } catch (err) {
+      setActionError(err.message || "No se pudo subir el recibo firmado.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateWarranty(event) {
+    event.preventDefault();
+    setSaving(true);
+    setActionError("");
+    try {
+      const fotos = await Promise.all(Array.from(updateForm.fotos || []).map(async (file) => ({
+        nombre: file.name,
+        name: file.name,
+        size: file.size,
+        lastModified: file.lastModified,
+        tipo: "garantia_avance",
+        visibleCliente: updateForm.visibleCliente,
+        dataUrl: await fileToDataUrl(file),
+      })));
+      const token = getToken();
+      const response = await fetch(`${API_URL}/api/garantias/${encodeURIComponent(params.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          estado: updateForm.estado,
+          historialItem: {
+            titulo: `Actualización: ${STATUS_OPTIONS.find((item) => item.value === updateForm.estado)?.label || updateForm.estado}`,
+            descripcion: updateForm.observacion,
+            visibleCliente: updateForm.visibleCliente,
+            fotos,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No se pudo actualizar la garantía");
+      setWarranty(data.garantia);
+      setMessage(data.mensaje);
+      setUpdateForm({ estado: data.garantia?.estado || "abierta", observacion: "", visibleCliente: true, fotos: [] });
+    } catch (err) {
+      setActionError(err.message || "No se pudo actualizar la garantía.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const windowData = useMemo(() => {
     const repair = warranty?.reparacion || {};
@@ -100,7 +223,8 @@ export default function WarrantyDetailPage({ params }) {
   const cliente = repair.cliente || {};
   const equipo = repair.equipo || {};
   const opening = Array.isArray(warranty.historial) ? warranty.historial[0] || {} : {};
-  const badge = statusInfo(warranty, windowData.vence);
+  const phaseBadge = phaseInfo(warranty);
+  const validityBadge = validityInfo(windowData.vence);
   const phone = String(cliente.telefono || "").replace(/\D/g, "");
   const receiptData = {
     folio: textValue(warranty.folio),
@@ -123,11 +247,44 @@ export default function WarrantyDetailPage({ params }) {
     window.print();
   }
 
+  const showReceipt = vista === "recibo";
+  const showUpdate = vista === "actualizar";
+
+  if (showReceipt) {
+    return (
+      <main className="gt-print-root min-h-screen bg-[#F3F4F6] px-4 py-6 text-[#0A0A0A]" style={{ fontFamily: "Inter, var(--cc-font), Arial, sans-serif" }}>
+        <style jsx global>{`
+          .gt-receipt-print {
+            display: block;
+            width: 72mm;
+            margin: 0 auto;
+          }
+          @media print {
+            @page { size: 80mm auto; margin: 4mm; }
+            body * { visibility: hidden !important; }
+            .gt-print-root, .gt-print-root * { visibility: visible !important; }
+            .gt-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 72mm !important; padding: 0 !important; background: white !important; }
+            .no-print { display: none !important; }
+            .gt-receipt-print { width: 72mm !important; margin: 0 !important; }
+          }
+        `}</style>
+        <div className="no-print mx-auto mb-4 flex max-w-[360px] items-center justify-between gap-3">
+          <Link href={`/admin/garantias/${encodeURIComponent(warranty.folio)}`} className="text-sm font-bold text-[#0055FF]">Volver a ficha</Link>
+          <button type="button" onClick={() => window.print()} className="rounded-[6px] border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-bold text-[#334155]">Imprimir</button>
+        </div>
+        <WarrantyReceiptPrint data={receiptData} />
+      </main>
+    );
+  }
+
   return (
-    <main className="space-y-6 text-[#0A0A0A]" style={{ fontFamily: "Inter, var(--cc-font), Arial, sans-serif" }}>
-      <WarrantyReceiptPrint data={receiptData} />
+    <main className="warranty-detail-main space-y-6 text-[#0A0A0A]" style={{ fontFamily: "Inter, var(--cc-font), Arial, sans-serif" }}>
+      {false ? <WarrantyReceiptPrint data={receiptData} /> : null}
       <style jsx global>{`
         .gt-receipt-print {
+          display: none;
+        }
+        .warranty-detail-main > section:last-of-type {
           display: none;
         }
 
@@ -159,14 +316,9 @@ export default function WarrantyDetailPage({ params }) {
       `}</style>
       <div className="flex items-center justify-between gap-3">
         <Link href="/admin/garantias" className="text-sm font-bold text-[#0055FF]">← Volver a garantías</Link>
-        <button
-          type="button"
-          onClick={printReceipt}
-          className="rounded-[6px] border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-bold text-[#334155] transition hover:bg-[#F8FAFC]"
-        >
-          Imprimir recibo GT
-        </button>
+        <Link href={`/admin/garantias/${encodeURIComponent(warranty.folio)}?vista=recibo`} className="rounded-[6px] border border-[#D1D5DB] bg-white px-4 py-2 text-sm font-bold text-[#334155] transition hover:bg-[#F8FAFC]">Ver recibo GT</Link>
       </div>
+      {actionError ? <div className="rounded-[6px] border border-[#F4B7B7] bg-[#FFF5F5] p-4 text-sm font-bold text-[#B42318]">{actionError}</div> : null}
 
       <section className="overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-white">
         <div className="flex flex-col gap-4 border-b border-[#E5E7EB] px-6 py-5 md:flex-row md:items-start md:justify-between">
@@ -175,21 +327,61 @@ export default function WarrantyDetailPage({ params }) {
             <h1 className="mt-2 text-[26px] font-bold tracking-[-0.02em]">{warranty.folio}</h1>
             <p className="mt-2 text-sm font-medium text-[#526174]">Garantía vinculada con la orden {warranty.reparacionFolio}.</p>
           </div>
-          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${badge.className}`}>{badge.label}</span>
+          <div className="flex flex-wrap gap-2">
+            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${phaseBadge.className}`}>Fase: {phaseBadge.label}</span>
+            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${validityBadge.className}`}>Vigencia: {validityBadge.label}</span>
+          </div>
         </div>
 
         <div className="grid border-b border-[#E5E7EB] md:grid-cols-4">
           <Info label="GT" value={warranty.folio} />
           <Info label="RX original" value={warranty.reparacionFolio || "-"} />
+          <Info label="Fase" value={phaseBadge.label} />
+          <Info label="Vigencia" value={validityBadge.label} />
+        </div>
+        <div className="grid border-b border-[#E5E7EB] md:grid-cols-2">
           <Info label="Inicio" value={formatDate(windowData.inicio)} />
           <Info label="Vence" value={formatDate(windowData.vence)} sub={windowData.days ? `${windowData.days} días de garantía` : "Sin días configurados"} />
         </div>
       </section>
 
+      {showUpdate && warranty.estado !== "cerrada" ? (
+        <section className="overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-white">
+          <div className="border-b border-[#E5E7EB] px-6 py-4">
+            <h2 className="text-lg font-bold">Actualizar garantía</h2>
+          </div>
+          <form onSubmit={updateWarranty} className="grid gap-4 p-6 md:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#526174]">Estado</span>
+              <select value={updateForm.estado} onChange={(event) => setUpdateForm((current) => ({ ...current, estado: event.target.value }))} className="h-11 w-full rounded-[6px] border border-[#D1D5DB] bg-white px-3 text-sm font-semibold outline-none focus:border-[#0055FF]">
+                {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#526174]">Fotos de avance</span>
+              <input type="file" accept="image/*" multiple onChange={(event) => setUpdateForm((current) => ({ ...current, fotos: Array.from(event.target.files || []) }))} className="block h-11 w-full rounded-[6px] border border-[#D1D5DB] bg-white px-3 py-2 text-sm font-semibold" />
+            </label>
+            <label className="space-y-2 md:col-span-2">
+              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#526174]">Observación</span>
+              <textarea value={updateForm.observacion} onChange={(event) => setUpdateForm((current) => ({ ...current, observacion: event.target.value }))} rows={4} className="w-full rounded-[6px] border border-[#D1D5DB] px-3 py-2 text-sm font-semibold outline-none focus:border-[#0055FF]" />
+            </label>
+            <label className="flex items-center gap-2 text-sm font-bold text-[#334155]">
+              <input type="checkbox" checked={updateForm.visibleCliente} onChange={(event) => setUpdateForm((current) => ({ ...current, visibleCliente: event.target.checked }))} />
+              Visible para cliente
+            </label>
+            <div className="flex justify-end">
+              <button disabled={saving} className="h-10 rounded-[6px] bg-[#0055FF] px-4 text-sm font-bold text-white disabled:opacity-60">
+                {saving ? "Guardando..." : "Guardar avance"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       <section className="overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-white">
         <div className="border-b border-[#E5E7EB] px-6 py-4">
           <h2 className="text-lg font-bold">Orden RX vinculada</h2>
-          <p className="mt-1 text-[13px] font-medium text-[#526174]">Estos datos vienen de la reparación original y no se modifican desde la garantía.</p>
+         
         </div>
         <div className="grid border-b border-[#E5E7EB] md:grid-cols-3">
           <Info label="Cliente" value={cliente.nombre || "-"} sub={cliente.telefono || "-"} />
@@ -234,6 +426,18 @@ export default function WarrantyDetailPage({ params }) {
               <div>
                 <p className="text-sm font-bold">{item.titulo || item.estado || "Actualización"}</p>
                 <p className="mt-1 text-sm font-medium text-[#526174]">{item.descripcion || "-"}</p>
+                {Array.isArray(item.fotos) && item.fotos.length ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {item.fotos.map((foto, fotoIndex) => {
+                      const src = fileUrl(foto?.url || foto?.ruta || foto?.src || foto?.dataUrl);
+                      return (
+                        <a key={fotoIndex} href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-[6px] border border-[#D1D5DB]">
+                          <img src={src} alt={foto?.nombre || `Foto GT ${fotoIndex + 1}`} className="h-24 w-full object-cover" />
+                        </a>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
               <p className="text-sm font-bold text-[#526174]">Por: {item.tecnico || "-"}</p>
             </div>
@@ -250,8 +454,15 @@ export default function WarrantyDetailPage({ params }) {
         </div>
         <div className="grid gap-3 p-6 md:grid-cols-3">
           <button onClick={printReceipt} className="rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-sm font-bold text-[#334155]">Imprimir recibo GT</button>
-          <a href={phone ? `https://wa.me/52${phone}?text=${encodeURIComponent(message?.text || "")}` : "#"} target="_blank" rel="noreferrer" className="rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-center text-sm font-bold text-[#16854E]">WhatsApp</a>
-          <a href={`mailto:${cliente.correo || ""}?subject=${encodeURIComponent(message?.subject || warranty.folio)}&body=${encodeURIComponent(message?.text || "")}`} className="rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-center text-sm font-bold text-[#0055FF]">Correo</a>
+          <label className="cursor-pointer rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-center text-sm font-bold text-[#334155]">
+            {saving ? "Subiendo..." : "Subir recibo firmado"}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={uploadSignedReceipt} />
+          </label>
+          {warranty.documentos?.reciboFirmado?.url ? (
+            <a href={fileUrl(warranty.documentos.reciboFirmado.url)} target="_blank" rel="noreferrer" className="rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-center text-sm font-bold text-[#334155]">Ver recibo firmado</a>
+          ) : null}
+          <button type="button" onClick={() => openMessage("whatsapp")} className="rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-sm font-bold text-[#16854E]">WhatsApp</button>
+          <button type="button" onClick={() => openMessage("email")} className="rounded-[6px] border border-[#D1D5DB] px-4 py-3 text-sm font-bold text-[#0055FF]">Correo</button>
         </div>
       </section>
     </main>

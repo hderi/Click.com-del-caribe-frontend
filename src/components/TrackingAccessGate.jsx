@@ -63,6 +63,7 @@ function formatMXN(value) {
 }
 
 function PaymentSummary({ orden }) {
+  if (orden.tipo === "garantia") return null;
   const costo = Number(orden.costo || 0);
   const pagado = Number(orden.pagado || 0);
   const faltante = Math.max(costo - pagado, 0);
@@ -136,20 +137,24 @@ function AvancesTimeline({ avances }) {
 
 export default function SeguimientoPage() {
   const [folio, setFolio] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [orden, setOrden] = useState(null);
 
   async function buscar(e) {
     e.preventDefault();
-    if (!folio.trim()) return;
+    if (!folio.trim() || telefono.replace(/\D/g, "").length !== 4) {
+      setError("Ingresa el folio y los ultimos 4 digitos del telefono proporcionado.");
+      return;
+    }
 
     setLoading(true);
     setError("");
     setOrden(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/public/ordenes/${encodeURIComponent(folio.trim())}`);
+      const res = await fetch(`${API_URL}/api/public/ordenes/${encodeURIComponent(folio.trim())}?telefono=${encodeURIComponent(telefono.replace(/\D/g, ""))}`);
       if (!res.ok) {
         setError("No encontramos ninguna orden con ese folio. Verifica el número e intenta de nuevo.");
         return;
@@ -192,12 +197,21 @@ export default function SeguimientoPage() {
           Ingresa el número de folio que te dimos al recibir tu equipo.
         </p>
 
-        <form onSubmit={buscar} className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <form onSubmit={buscar} className="mt-8 grid gap-3 sm:grid-cols-[1fr_170px_auto]">
           <input
             type="text"
             value={folio}
             onChange={(e) => setFolio(e.target.value)}
             placeholder="Ej. Rx-000"
+            className="w-full border-b-2 border-[#0F1F4A]/30 bg-transparent px-1 py-3 text-[16px] font-bold text-[#0F1F4A] placeholder:font-medium placeholder:text-[#94A3B8] focus:border-[#0F1F4A] focus:outline-none"
+          />
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            placeholder="Ultimos 4"
             className="w-full border-b-2 border-[#0F1F4A]/30 bg-transparent px-1 py-3 text-[16px] font-bold text-[#0F1F4A] placeholder:font-medium placeholder:text-[#94A3B8] focus:border-[#0F1F4A] focus:outline-none"
           />
           <button
@@ -230,6 +244,12 @@ export default function SeguimientoPage() {
             <PaymentSummary orden={orden} />
 
             <AvancesTimeline avances={orden.avances} />
+
+            <div className="mt-10 border-t border-[#D8DEE8] pt-6">
+              <a href="/politicas-servicio" className="text-[14px] font-extrabold text-[#0F1F4A] underline decoration-2 underline-offset-4">
+                Ver politicas de servicio
+              </a>
+            </div>
 
             <div className="mt-12">
               <a

@@ -162,10 +162,10 @@ export default function ClientesPage() {
     const companies = clientRows.filter((client) => client.type === "Empresa").length;
     const repairCount = clientRows.reduce((sum, client) => sum + Number(client.repairs || 0), 0);
     return [
-      { label: "Clientes", count: clientRows.length, color: "#0077B6", note: "Registrados" },
-      { label: "Activos", count: active, color: "#1F8F5F", note: "Con equipo en taller" },
-      { label: "Empresas", count: companies, color: "#D97706", note: "Clientes negocio" },
-      { label: "Historial", count: repairCount, color: "#475569", note: "Reparaciones asociadas" },
+      { label: "Clientes", count: clientRows.length, color: "#0077B6", note: "" },
+      { label: "Activos", count: active, color: "#1F8F5F", note: "" },
+      { label: "Empresas", count: companies, color: "#D97706", note: "" },
+      { label: "Historial", count: repairCount, color: "#475569", note: "" },
     ];
   }, [clientRows]);
 

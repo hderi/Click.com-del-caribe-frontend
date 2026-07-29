@@ -27,11 +27,15 @@ function photoSrc(photo) {
   const src = typeof photo === "string" ? photo : photo?.url || photo?.ruta || photo?.src || photo?.dataUrl || "";
   if (!src) return "";
   if (src.startsWith("data:") || src.startsWith("http")) return src;
-  return `${API_URL}${src.startsWith("/") ? src : `/${src}`}`;
+  const absolute = `${API_URL}${src.startsWith("/") ? src : `/${src}`}`;
+  if (!absolute.includes("/uploads/") || absolute.includes("token=")) return absolute;
+  const token = getToken();
+  return token ? `${absolute}${absolute.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : absolute;
 }
 
 function receiptData(repair) {
   const cliente = repair?.cliente || {};
+  const contacto = repair?.contactoReparacion || {};
   const equipo = repair?.equipo || {};
   const pago = repair?.pago || {};
   const anticipo = repair?.anticipo || {};
@@ -41,8 +45,8 @@ function receiptData(repair) {
 
   return {
     folio: repair?.folio || "-",
-    cliente: value(cliente.nombre, repair?.clienteNombre),
-    telefono: value(cliente.telefono, repair?.telefono),
+    cliente: value(contacto.nombre, cliente.nombre, repair?.clienteNombre),
+    telefono: value(contacto.telefono, cliente.telefono, repair?.telefono),
     equipo: [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || value(equipo.tipo, repair?.tipoEquipo, "Equipo"),
     tipo: value(equipo.tipo, repair?.tipoEquipo),
     serie: value(equipo.serie, repair?.numeroSerie),
@@ -104,21 +108,36 @@ export default function RepairReceiptPage({ params }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#F3F4F6] px-4 py-6 font-[Inter] text-[#111827]">
+    <main className="ticket-print-root min-h-screen bg-[#F3F4F6] px-4 py-6 font-[Inter] text-[#111827]">
       <style jsx global>{`
         @media print {
           @page {
-            size: 75mm auto;
+            size: 80mm auto;
             margin: 4mm;
           }
           html, body {
+            background: white !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .ticket-print-root,
+          .ticket-print-root * {
+            visibility: visible !important;
+          }
+          .ticket-print-root {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 72mm !important;
+            padding: 0 !important;
             background: white !important;
           }
           .no-print {
             display: none !important;
           }
           .ticket-sheet {
-            width: 75mm !important;
+            width: 72mm !important;
             box-shadow: none !important;
             border: 0 !important;
             margin: 0 !important;
