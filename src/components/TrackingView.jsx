@@ -1,5 +1,6 @@
 "use client";
 
+import { SERVICE_POLICIES } from "@/lib/servicePolicies";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -144,10 +145,9 @@ function PoliciesAccordion() {
       </button>
       {open ? (
         <div className="mt-3 space-y-2 rounded-md border border-[#e4e9f2] bg-white/60 p-4 text-sm font-medium leading-6 text-[#334155]">
-          <p>• El taller no se hace responsable por equipos no recogidos después de 30 días naturales desde la notificación de entrega.</p>
-          <p>• La garantía cubre exclusivamente la falla diagnosticada y reparada, salvo que se indique lo contrario.</p>
-          <p>• Para recoger el equipo, es necesario presentar el folio de la orden.</p>
-          <p>• Cualquier duda sobre estas políticas, contáctanos por WhatsApp.</p>
+          {SERVICE_POLICIES.map((policy, index) => (
+            <p key={index}>• {policy}</p>
+          ))}
         </div>
       ) : null}
     </div>

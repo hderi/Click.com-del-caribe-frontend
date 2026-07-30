@@ -617,7 +617,7 @@ export default function PublicWindowApp() {
             title="Sucursal Playa del Carmen"
             address={address}
             phone={companyConfig.telefono || "984 804 7192"}
-            email={companyConfig.correo || "erickalh56@gmail.com"}
+            email={companyConfig.correo || "auxiliar.ventas@clickdelcaribe.com.mx"}
             schedule={
               companyConfig.horario ||
               "Lunes a viernes: 9:00 AM - 6:00 PM. Sábado: 9:00 AM - 3:00 PM. Domingo: cerrado."
@@ -631,7 +631,7 @@ export default function PublicWindowApp() {
             title="Sucursal Tulum"
             address={companyConfig.direccionTulum || ADDRESS_TULUM}
             phone={companyConfig.telefonoTulum || "984 218 2699"}
-            email={companyConfig.correo || "erickalh56@gmail.com"}
+            email={companyConfig.correo || "ventastulum@clickdelcaribe.com.mx"}
             schedule={
               companyConfig.horarioTulum ||
               "Lunes a viernes: 9:00 AM - 6:00 PM. Sábado: 9:00 AM - 3:00 PM. Domingo: cerrado."
