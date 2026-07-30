@@ -19,9 +19,7 @@ export default function ServicePoliciesPage() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#FF6B00]">Condiciones del servicio</p>
               <h1 className="mt-2 text-3xl font-black leading-tight text-[#07152B]">Politicas de servicio</h1>
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#52647D]">
-                Estas politicas aplican para diagnosticos, reparaciones, garantias, resguardo y entrega de equipos recibidos por CLICK.COM del Caribe.
-              </p>
+
             </div>
           </div>
         </header>
