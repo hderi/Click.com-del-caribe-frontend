@@ -83,7 +83,7 @@ function whatsapp(phone, text) {
 function BrandMark({ light = false }) {
   return (
     <img
-      src="public/logo-clickcom.png.png"
+      src="/logo-clickcom.png.png"
       alt="CLICK.COM del Caribe"
       className={light ? "h-10 w-auto object-contain brightness-0 invert" : "h-14 w-auto object-contain sm:h-16"}
     />
