@@ -198,6 +198,16 @@ export default function WarrantyDetailPage({ params }) {
     }
   }
 
+  function addUpdatePhotos(event) {
+    const selected = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!selected.length) return;
+    setUpdateForm((current) => ({
+      ...current,
+      fotos: [...(current.fotos || []), ...selected],
+    }));
+  }
+
   const windowData = useMemo(() => {
     const repair = warranty?.reparacion || {};
     const days = Number(repair.garantia?.dias || 0);
@@ -357,10 +367,22 @@ export default function WarrantyDetailPage({ params }) {
                 {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </label>
-            <label className="space-y-2">
+            <div className="space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#526174]">Fotos de avance</span>
-              <input type="file" accept="image/*" multiple onChange={(event) => setUpdateForm((current) => ({ ...current, fotos: Array.from(event.target.files || []) }))} className="block h-11 w-full rounded-[6px] border border-[#D1D5DB] bg-white px-3 py-2 text-sm font-semibold" />
-            </label>
+              <div className="flex flex-wrap items-center gap-2 rounded-[6px] border border-[#D1D5DB] bg-white px-3 py-2">
+                <label htmlFor="warranty-camera-input" className="inline-flex h-9 cursor-pointer items-center rounded-[6px] bg-[#24566F] px-4 text-xs font-black text-white transition hover:bg-[#1a3f52]">
+                  Cámara
+                </label>
+                <label htmlFor="warranty-gallery-input" className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border border-[#C9D8E5] bg-white px-4 text-xs font-black text-[#24566F] transition hover:bg-[#F0F5F9]">
+                  Galería
+                </label>
+                <span className="text-xs font-bold text-[#526174]">
+                  {updateForm.fotos?.length ? `${updateForm.fotos.length} foto(s) seleccionada(s)` : "Sin fotos seleccionadas"}
+                </span>
+              </div>
+              <input id="warranty-camera-input" type="file" accept="image/*" capture="environment" multiple onChange={addUpdatePhotos} className="hidden" />
+              <input id="warranty-gallery-input" type="file" accept="image/*" multiple onChange={addUpdatePhotos} className="hidden" />
+            </div>
             <label className="space-y-2 md:col-span-2">
               <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#526174]">Observación</span>
               <textarea value={updateForm.observacion} onChange={(event) => setUpdateForm((current) => ({ ...current, observacion: event.target.value }))} rows={4} className="w-full rounded-[6px] border border-[#D1D5DB] px-3 py-2 text-sm font-semibold outline-none focus:border-[#0055FF]" />
